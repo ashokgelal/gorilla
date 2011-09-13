@@ -18,7 +18,6 @@ import (
 	"http"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 	"gorilla.googlecode.com/hg/gorilla/context"
 )
@@ -189,7 +188,6 @@ func (f *SessionFactory) SetStoreKeys(key string,
 		return false, err
 	}
 	var b cipher.Block
-	var k int
 	size := len(pairs)
 	encoders := make([]SessionEncoder, size / 2 + size % 2)
 	for i := 0; i < size; i += 2 {
@@ -204,13 +202,12 @@ func (f *SessionFactory) SetStoreKeys(key string,
 				return false, err
 			}
 		}
-		encoders[k] = &Encoder{
+		encoders[i/2] = &Encoder{
 			Hash:      hmac.NewSHA256(pairs[i]),
 			Block:     b,
 			MaxAge:    86400 * 30,
 			MaxLength: 4096,
 		}
-		k++
 	}
 	// Set the new encoders.
 	store.SetEncoders(encoders...)
@@ -493,7 +490,7 @@ func (s *BaseSessionStore) Decode(key, value string) (SessionData, os.Error) {
 //
 // If the session is invalid, it will return an empty SessionData.
 func (s *BaseSessionStore) GetCookie(r *http.Request, key string) SessionData {
-	if cookie, err := getCookie(r, key); err == nil {
+	if cookie, err := r.Cookie(key); err == nil {
 		if data, err2 := s.Decode(key, cookie.Value); err2 == nil {
 			return data
 		}
@@ -771,19 +768,13 @@ func createHmac(h hash.Hash, key string, value []byte,
 // The provided source bytes must be in the form "value|timestamp|message".
 func verifyHmac(h hash.Hash, key string, value []byte, timestamp, minAge,
 				maxAge int64) ([]byte, os.Error) {
-	var rv, msg []byte
-	var tst int64
-	sep := []byte("|")
-	// Can't use bytes.Split or bytes.SplitN to support r58 and later.
-	i1 := bytes.Index(value, sep)
-	if i1 != -1 {
-		i2 := bytes.Index(value[i1+1:], sep)
-		if i2 != -1 {
-			rv = value[:i1]
-			tst, _ = strconv.Atoi64(string(value[i1+1:i1+i2+1]))
-			msg = value[i1+i2+2:]
-		}
+	parts := bytes.SplitN(value, []byte("|"), 3)
+	if len(parts) != 3 {
+		return nil, ErrAuthentication
 	}
+	rv := parts[0]
+	tst, _ := strconv.Atoi64(string(parts[1]))
+	msg := parts[2]
 	if tst == 0 {
 		return nil, ErrBadTimestamp
 	}
@@ -828,137 +819,4 @@ func decode(value []byte) ([]byte, os.Error) {
 		return nil, err
 	}
 	return decoded[:b], nil
-}
-
-// ----------------------------------------------------------------------------
-// r58 compatibility
-// ----------------------------------------------------------------------------
-// Several functions extracted/adapted from Go source for r58 compatibility.
-//
-// Copyright 2009 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-// We can't call request.Cookie(name) with r58 so we re-implement this. :-/
-func getCookie(r *http.Request, name string) (*http.Cookie, os.Error) {
-	cookies := readCookies(r.Header, name)
-	if len(cookies) == 0 {
-		return nil, ErrNoCookie
-	}
-	return cookies[len(cookies)-1], nil
-}
-
-// readCookies parses all "Cookie" values from the header h and
-// returns the successfully parsed Cookies.
-//
-// if filter isn't empty, only cookies of that name are returned
-func readCookies(h http.Header, filter string) []*http.Cookie {
-	cookies := []*http.Cookie{}
-	lines, ok := h["Cookie"]
-	if !ok {
-		return cookies
-	}
-
-	for _, line := range lines {
-		parts := stringsSplit(strings.TrimSpace(line), ";")
-		if len(parts) == 1 && parts[0] == "" {
-			continue
-		}
-		// Per-line attributes
-		parsedPairs := 0
-		for i := 0; i < len(parts); i++ {
-			parts[i] = strings.TrimSpace(parts[i])
-			if len(parts[i]) == 0 {
-				continue
-			}
-			name, val := parts[i], ""
-			if j := strings.Index(name, "="); j >= 0 {
-				name, val = name[:j], name[j+1:]
-			}
-			if !isCookieNameValid(name) {
-				continue
-			}
-			if filter != "" && filter != name {
-				continue
-			}
-			val, success := parseCookieValue(val)
-			if !success {
-				continue
-			}
-			cookies = append(cookies, &http.Cookie{Name: name, Value: val})
-			parsedPairs++
-		}
-	}
-	return cookies
-}
-
-func stringsSplit(s, sep string) []string {
-	n := strings.Count(s, sep) + 1
-	c := sep[0]
-	start := 0
-	a := make([]string, n)
-	na := 0
-	for i := 0; i+len(sep) <= len(s) && na+1 < n; i++ {
-		if s[i] == c && (len(sep) == 1 || s[i:i+len(sep)] == sep) {
-			a[na] = s[start : i]
-			na++
-			start = i + len(sep)
-			i += len(sep) - 1
-		}
-	}
-	a[na] = s[start:]
-	return a[0 : na+1]
-}
-
-func isCookieNameValid(raw string) bool {
-	for _, c := range raw {
-		if !isToken(byte(c)) {
-			return false
-		}
-	}
-	return true
-}
-
-func isSeparator(c byte) bool {
-	switch c {
-	case '(', ')', '<', '>', '@', ',', ';', ':', '\\', '"', '/', '[', ']', '?', '=', '{', '}', ' ', '\t':
-		return true
-	}
-	return false
-}
-
-func isCtl(c byte) bool { return (0 <= c && c <= 31) || c == 127 }
-
-func isChar(c byte) bool { return 0 <= c && c <= 127 }
-
-func isToken(c byte) bool { return isChar(c) && !isCtl(c) && !isSeparator(c) }
-
-func parseCookieValue(raw string) (string, bool) {
-	return parseCookieValueUsing(raw, isCookieByte)
-}
-
-func parseCookieValueUsing(raw string, validByte func(byte) bool) (string, bool) {
-	raw = unquoteCookieValue(raw)
-	for i := 0; i < len(raw); i++ {
-		if !validByte(raw[i]) {
-			return "", false
-		}
-	}
-	return raw, true
-}
-
-func unquoteCookieValue(v string) string {
-	if len(v) > 1 && v[0] == '"' && v[len(v)-1] == '"' {
-		return v[1 : len(v)-1]
-	}
-	return v
-}
-
-func isCookieByte(c byte) bool {
-	switch {
-	case c == 0x21, 0x23 <= c && c <= 0x2b, 0x2d <= c && c <= 0x3a,
-		0x3c <= c && c <= 0x5b, 0x5d <= c && c <= 0x7e:
-		return true
-	}
-	return false
 }

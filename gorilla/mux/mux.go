@@ -11,6 +11,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"url"
 	"gorilla.googlecode.com/hg/gorilla/context"
 )
 
@@ -392,7 +393,7 @@ func (r *Route) Clone() *Route {
 func (r *Route) Match(req *http.Request) (*Route, bool) {
 	// TODO Match the path unescaped?
 	/*
-	if path, ok := http.URLUnescape(r.URL.Path); ok {
+	if path, ok := url.URLUnescape(r.URL.Path); ok {
 		// URLUnescape converts '+' into ' ' (space). Revert this.
 		path = strings.Replace(path, " ", "+", -1)
 	} else {
@@ -480,7 +481,7 @@ func (r *Route) NewRouter() *Router {
 //     url := mux.NamedRoutes["article"].URL("category", "technology",
 //                                           "id", "42")
 //
-// ...which will return an http.URL with the following path:
+// ...which will return an url.URL with the following path:
 //
 //     "/articles/technology/42"
 //
@@ -497,7 +498,7 @@ func (r *Route) NewRouter() *Router {
 //
 // All variable names defined in the route are required, and their values must
 // conform to the corresponding patterns, if any.
-func (r *Route) URL(pairs ...string) *http.URL {
+func (r *Route) URL(pairs ...string) *url.URL {
 	var scheme, host, path string
 	values := stringMapFromPairs(errOddURLPairs, pairs...)
 	if r.hostTemplate != nil {
@@ -508,7 +509,7 @@ func (r *Route) URL(pairs ...string) *http.URL {
 	if r.pathTemplate != nil {
 		path = reverseRoute(r.pathTemplate, values)
 	}
-	return &http.URL{
+	return &url.URL{
 		Scheme: scheme,
 		Host:   host,
 		Path:   path,
@@ -518,12 +519,12 @@ func (r *Route) URL(pairs ...string) *http.URL {
 // URLHost builds the host part of the URL for a route.
 //
 // The route must have a host defined.
-func (r *Route) URLHost(pairs ...string) *http.URL {
+func (r *Route) URLHost(pairs ...string) *url.URL {
 	if r.hostTemplate == nil {
 		panic(errMissingHost)
 	}
 	values := stringMapFromPairs(errOddURLPairs, pairs...)
-	return &http.URL{
+	return &url.URL{
 		Scheme: "http",
 		Host:   reverseRoute(r.hostTemplate, values),
 	}
@@ -532,12 +533,12 @@ func (r *Route) URLHost(pairs ...string) *http.URL {
 // URLPath builds the path part of the URL for a route.
 //
 // The route must have a path defined.
-func (r *Route) URLPath(pairs ...string) *http.URL {
+func (r *Route) URLPath(pairs ...string) *url.URL {
 	if r.pathTemplate == nil {
 		panic(errMissingPath)
 	}
 	values := stringMapFromPairs(errOddURLPairs, pairs...)
-	return &http.URL{
+	return &url.URL{
 		Path: reverseRoute(r.pathTemplate, values),
 	}
 }
@@ -829,8 +830,9 @@ func parseTemplate(template string, defaultPattern string,
 	// TODO Previously we accepted only Python-like identifiers for variable
 	// names ([a-zA-Z_][a-zA-Z0-9_]*), but should we care at all?
 	// Currently the only restriction is that name and pattern can't be empty.
-	var raw, name_patt, name, patt string
-	var end, colon int
+	var raw, name, patt string
+	var end int
+	var parts []string
 	pattern := bytes.NewBufferString("^")
 	reverse := bytes.NewBufferString("")
 	idxs := findAllVariableIndex(template)
@@ -841,14 +843,12 @@ func parseTemplate(template string, defaultPattern string,
 		// 1. Set all values we are interested in.
 		raw = template[end:idxs[i]]
 		end = idxs[i+1]
-		name_patt = template[idxs[i]+1:end-1]
-		// Can't use strings.Split or strings.SplitN to support r58 and later.
-		if colon = strings.Index(name_patt, ":"); colon == -1 {
-			name = name_patt
+		parts = strings.SplitN(template[idxs[i]+1:end-1], ":", 2)
+		name = parts[0]
+		if len(parts) == 1 {
 			patt = defaultPattern
 		} else {
-			name = name_patt[:colon]
-			patt = name_patt[colon+1:]
+			patt = parts[1]
 		}
 		// Name or pattern can't be empty.
 		if name == "" || patt == "" {
