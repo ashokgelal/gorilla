@@ -1,0 +1,42 @@
+Gorilla
+=======
+Gorilla is a web toolkit for the Go programming language. Learn more:
+
+* http://gorilla-web.appspot.com/ - general information and documentation.
+* http://code.google.com/p/gorilla/ - project repository and issue tracker.
+
+
+Local docs
+----------
+To browse the documentation locally, clone the repository using Mercurial:
+
+    $ hg clone https://code.google.com/p/gorilla/
+
+Then run the documentation server from the repository:
+
+    $ godoc -path="./gorilla/" -http=:6060
+
+The docs will be available at http://localhost:6060
+
+
+Packages
+--------
+Currently these packages are available:
+
+gorilla/context
+~~~~~~~~~~~~~~~
+Utilities to manage request contexts.
+
+    $ goinstall gorilla.googlecode.com/hg/gorilla/context
+
+gorilla/mux
+~~~~~~~~~~~
+Request router and dispatcher.
+
+    $ goinstall gorilla.googlecode.com/hg/gorilla/mux
+
+gorilla/sessions
+~~~~~~~~~~~~~~~~
+Cookie sessions and infrastructure for custom session backends.
+
+    $ goinstall gorilla.googlecode.com/hg/gorilla/sessions
