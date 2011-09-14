@@ -12,7 +12,7 @@ The key features are:
 encrypted) cookies.
 
 * Advanced API for custom backends: built-in support for custom storage
-systems; session store interface and base implementation; encoder interface
+systems; session store interface and helper functions; encoder interface
 and default implementation with customizable cryptography methods (thanks to
 Go interfaces).
 
