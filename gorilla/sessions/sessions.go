@@ -112,18 +112,6 @@ func Save(r *http.Request, w http.ResponseWriter) []os.Error {
 	return DefaultSessionFactory.Save(r, w)
 }
 
-// GenerateSessionId generates a random session id with the given length.
-func GenerateSessionId(length int) (string, os.Error) {
-	if length <= 0 {
-		return "", ErrBadIdLength
-	}
-	id := make([]byte, length)
-	if _, err := rand.Read(id); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%x", id), nil
-}
-
 // ----------------------------------------------------------------------------
 // SessionFactory
 // ----------------------------------------------------------------------------
@@ -436,62 +424,69 @@ func sessionKeys(vars ...string) (string, string) {
 
 // SessionStore defines an interface for session stores.
 type SessionStore interface {
-	SetEncoders(encoders ...SessionEncoder)
 	Load(r *http.Request, key string, info *SessionInfo)
 	Save(w http.ResponseWriter, key string, info *SessionInfo) (bool, os.Error)
+	Encoders() []SessionEncoder
+	SetEncoders(encoders ...SessionEncoder)
 }
 
 // ----------------------------------------------------------------------------
-// BaseSessionStore
+// CookieSessionStore
 // ----------------------------------------------------------------------------
 
-// BaseSessionStore provides convenience utilities for custom session stores.
-type BaseSessionStore struct {
+// CookieSessionStore is the default session store.
+//
+// It stores the session data in authenticated and, optionally, encrypted
+// cookies.
+type CookieSessionStore struct {
+	// List of encoders registered for this store.
 	encoders []SessionEncoder
 }
 
-// SetEncoders sets a group of encoders to the store.
-func (s *BaseSessionStore) SetEncoders(encoders ...SessionEncoder) {
+// Get returns a session for the given key.
+func (s *CookieSessionStore) Load(r *http.Request, key string,
+								  info *SessionInfo) {
+	info.Data = GetCookie(s, r, key)
+}
+
+// Save saves the session in the response.
+func (s *CookieSessionStore) Save(w http.ResponseWriter, key string,
+								  info *SessionInfo) (bool, os.Error) {
+	return SetCookie(s, w, key, info)
+}
+
+// Encoders returns the encoders for this store.
+func (s *CookieSessionStore) Encoders() []SessionEncoder {
+	return s.encoders
+}
+
+// SetEncoders sets a group of encoders in the store.
+func (s *CookieSessionStore) SetEncoders(encoders ...SessionEncoder) {
 	s.encoders = encoders
 }
 
-// Encode encodes a session value.
-func (s *BaseSessionStore) Encode(key string,
-								  value SessionData) (string, os.Error) {
-	if s.encoders != nil {
-		var encoded string
-		var err os.Error
-		for _, encoder := range s.encoders {
-			encoded, err = encoder.Encode(key, value)
-			if err == nil {
-				return encoded, nil
-			}
-		}
-	}
-	return "", ErrEncoding
-}
+// ----------------------------------------------------------------------------
+// Utilities for custom session stores
+// ----------------------------------------------------------------------------
 
-// Decode decodes a session value.
-func (s *BaseSessionStore) Decode(key, value string) (SessionData, os.Error) {
-	if s.encoders != nil {
-		var decoded SessionData
-		var err os.Error
-		for _, encoder := range s.encoders {
-			decoded, err = encoder.Decode(key, value)
-			if err == nil {
-				return decoded, nil
-			}
-		}
+// GenerateSessionId generates a random session id with the given length.
+func GenerateSessionId(length int) (string, os.Error) {
+	if length <= 0 {
+		return "", ErrBadIdLength
 	}
-	return nil, ErrDecoding
+	id := make([]byte, length)
+	if _, err := rand.Read(id); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", id), nil
 }
 
 // GetCookie returns the contents from a session cookie.
 //
 // If the session is invalid, it will return an empty SessionData.
-func (s *BaseSessionStore) GetCookie(r *http.Request, key string) SessionData {
+func GetCookie(s SessionStore, r *http.Request, key string) SessionData {
 	if cookie, err := r.Cookie(key); err == nil {
-		if data, err2 := s.Decode(key, cookie.Value); err2 == nil {
+		if data, err2 := Decode(s, key, cookie.Value); err2 == nil {
 			return data
 		}
 	}
@@ -501,9 +496,9 @@ func (s *BaseSessionStore) GetCookie(r *http.Request, key string) SessionData {
 // SetCookie sets a session cookie using the user-defined configuration.
 //
 // Custom backends will only store a session id in the cookie.
-func (s *BaseSessionStore) SetCookie(w http.ResponseWriter, key string,
-									 info *SessionInfo) (bool, os.Error) {
-	encoded, err := s.Encode(key, info.Data)
+func SetCookie(s SessionStore, w http.ResponseWriter, key string,
+			   info *SessionInfo) (bool, os.Error) {
+	encoded, err := Encode(s, key, info.Data)
 	if err != nil {
 		return false, err
 	}
@@ -520,32 +515,40 @@ func (s *BaseSessionStore) SetCookie(w http.ResponseWriter, key string,
 	return true, nil
 }
 
-// ----------------------------------------------------------------------------
-// CookieSessionStore
-// ----------------------------------------------------------------------------
-
-// CookieSessionStore is the default session store.
-//
-// It stores the session data in authenticated and, optionally, encrypted
-// cookies.
-type CookieSessionStore struct {
-	BaseSessionStore
+// Encode encodes a session value for a session store.
+func Encode(s SessionStore, key string, value SessionData) (string, os.Error) {
+	encoders := s.Encoders()
+	if encoders != nil {
+		var encoded string
+		var err os.Error
+		for _, encoder := range encoders {
+			encoded, err = encoder.Encode(key, value)
+			if err == nil {
+				return encoded, nil
+			}
+		}
+	}
+	return "", ErrEncoding
 }
 
-// Get returns a session for the given key.
-func (s *CookieSessionStore) Load(r *http.Request, key string,
-								  info *SessionInfo) {
-	info.Data = s.GetCookie(r, key)
-}
-
-// Save saves the session in the response.
-func (s *CookieSessionStore) Save(w http.ResponseWriter, key string,
-								  info *SessionInfo) (bool, os.Error) {
-	return s.SetCookie(w, key, info)
+// Decode decodes a session value for a session store.
+func Decode(s SessionStore, key, value string) (SessionData, os.Error) {
+	encoders := s.Encoders()
+	if encoders != nil {
+		var decoded SessionData
+		var err os.Error
+		for _, encoder := range encoders {
+			decoded, err = encoder.Decode(key, value)
+			if err == nil {
+				return decoded, nil
+			}
+		}
+	}
+	return nil, ErrDecoding
 }
 
 // ----------------------------------------------------------------------------
-// Encoder
+// SessionEncoder
 // ----------------------------------------------------------------------------
 
 // SessionEncoder defines an interface to encode and decode session values.
@@ -553,6 +556,10 @@ type SessionEncoder interface {
 	Encode(key string, value SessionData) (string, os.Error)
 	Decode(key, value string) (SessionData, os.Error)
 }
+
+// ----------------------------------------------------------------------------
+// Encoder
+// ----------------------------------------------------------------------------
 
 // Encoder encodes and decodes session values.
 //
