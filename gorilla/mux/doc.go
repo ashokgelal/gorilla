@@ -126,7 +126,7 @@ key/value pairs for the route variables. For the previous route, we would do:
 
 	url := mux.NamedRoutes["article"].URL("category", "technology", "id", "42")
 
-...and the result will be an http.URL with the following path:
+...and the result will be a url.URL with the following path:
 
 	"/articles/technology/42"
 

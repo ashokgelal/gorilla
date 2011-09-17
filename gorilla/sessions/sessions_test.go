@@ -106,7 +106,7 @@ func TestEncryption(t *testing.T) {
 	var err os.Error
 
 	for _, value := range testStringValues {
-		encrypted = encrypt(block, []byte(value))
+		encrypted, err = encrypt(block, []byte(value))
 		decrypted, err = decrypt(block, encrypted)
 		if err != nil {
 			t.Error(err)
@@ -114,6 +114,26 @@ func TestEncryption(t *testing.T) {
 		if string(decrypted) != value {
 			t.Errorf("Expected %v, got %v.", value, string(decrypted))
 		}
+	}
+}
+
+func TestEncryptionBadBlock(t *testing.T) {
+	// Invalid block size.
+	block, err := aes.NewCipher([]byte("123"))
+	if err == nil {
+		t.Error("Expected invalid block size error.")
+	}
+
+	for _, value := range testStringValues {
+		_, err = encrypt(block, []byte(value))
+		if err == nil {
+			t.Error("Expected invalid block size error.")
+		}
+	}
+
+	_, err = decrypt(block, []byte("123456789012345612345678901234561234567890123456"))
+	if err == nil {
+		t.Error("Expected invalid block size error.")
 	}
 }
 

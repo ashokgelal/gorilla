@@ -45,7 +45,6 @@ var (
 	ErrOldTimestamp   = os.NewError("The value has an expired timestamp.")
 	ErrMissingHash    = os.NewError("A hash is required to create and verify values using HMAC.")
 	ErrMissingHashKey = os.NewError("Authentication secret can't be nil.")
-	ErrNoCookie       = os.NewError("No cookie found for the given key.")
 	ErrNoSession      = os.NewError("No session found for the given key.")
 	ErrNoFlashes      = os.NewError("No flashes found for the given key.")
 	ErrNoStore        = os.NewError("No store found for the given key.")
@@ -603,29 +602,37 @@ type Encoder struct {
 //
 // It serializes, optionally encrypts, creates a message authentication code
 // and finally encodes the value in a format suitable for cookie transmition.
-func (s *Encoder) Encode(key string, value SessionData) (string, os.Error) {
+func (s *Encoder) Encode(key string, value SessionData) (rv string, err os.Error) {
 	// Hash is required.
 	if s.Hash == nil {
-		return "", ErrMissingHash
+		err = ErrMissingHash
+		return
 	}
+	var b []byte
 
 	// 1. Serialize.
-	rv, err := serialize(value)
+	b, err = serialize(value)
 	if err != nil {
-		return "", err
+		return
 	}
 
 	// 2. Encrypt (optional).
 	if s.Block != nil {
-		// Encrypt and encode, because pipes would break HMAC verification.
-		rv = encode(encrypt(s.Block, rv))
+		b, err = encrypt(s.Block, b)
+		if err != nil {
+			return
+		}
+		// Encode because pipes would break HMAC verification.
+		b = encode(b)
+
 	}
 
 	// 3. Create hash.
-	rv = createHmac(s.Hash, key, rv, s.timestamp())
+	b = createHmac(s.Hash, key, b, s.timestamp())
 
 	// 4. Encode.
-	return string(encode(rv)), nil
+	rv = string(encode(b))
+	return
 }
 
 // Decode decodes a session value.
@@ -714,34 +721,49 @@ func deserialize(value []byte) (SessionData, os.Error) {
 
 // encrypt encrypts a value using the given Block in CTR mode.
 //
-// A random initialization vector (IV) is generated and later prepended to the
-// resulting ciphertext to be available for decryption. Also, a random salt
-// with the length of the block size is prepended to the value before
-// encryption.
-func encrypt(block cipher.Block, value []byte) []byte {
+// A random initialization vector is generated and prepended to the resulting
+// ciphertext to be available for decryption. Also, a random salt with the
+// length of the block size is prepended to the value before encryption.
+func encrypt(block cipher.Block, value []byte) (rv []byte, err os.Error) {
+	// Recover in case block has an invalid key.
+	defer func() {
+		if r := recover(); r != nil {
+			err = r.(os.Error)
+		}
+	}()
 	size := block.BlockSize()
-	// Generate an initialization vector (IV) suitable for encryption.
+	// Generate an initialization vector suitable for encryption.
 	// http://en.wikipedia.org/wiki/Block_cipher_modes_of_operation#Initialization_vector_.28IV.29
 	iv := make([]byte, size)
-	rand.Read(iv)
+	if _, err = rand.Read(iv); err != nil {
+		return
+	}
 	// Create a salt.
 	salt := make([]byte, size)
-	rand.Read(salt)
+	if _, err = rand.Read(salt); err != nil {
+		return
+	}
 	value = append(salt, value...)
 	// Encrypt it.
 	stream := cipher.NewCTR(block, iv)
 	stream.XORKeyStream(value, value)
 	// Return iv + ciphertext.
-	return append(iv, value...)
+	rv = append(iv, value...)
+	return
 }
 
 // decrypt decrypts a value using the given Block in CTR mode.
 //
 // The value to be decrypted must have a length greater than the block size,
-// because the initialization vector (IV) is expected to prepend it. Also,
-// a salt with the length of the block size is expected to prepend the plain
-// value.
-func decrypt(block cipher.Block, value []byte) ([]byte, os.Error) {
+// because the initialization vector is expected to prepend it. Also, a salt
+// with the length of the block size is expected to prepend the plain value.
+func decrypt(block cipher.Block, value []byte) (b []byte, err os.Error) {
+	// Recover in case block has an invalid key.
+	defer func() {
+		if r := recover(); r != nil {
+			err = r.(os.Error)
+		}
+	}()
 	size := block.BlockSize()
 	if len(value) > size {
 		// Extract iv.
@@ -753,10 +775,12 @@ func decrypt(block cipher.Block, value []byte) ([]byte, os.Error) {
 		stream.XORKeyStream(value, value)
 		if len(value) > size {
 			// Return value without the salt.
-			return value[size:], nil
+			b = value[size:]
+			return
 		}
 	}
-	return nil, ErrDecryption
+	err = ErrDecryption
+	return
 }
 
 // Authentication -------------------------------------------------------------
