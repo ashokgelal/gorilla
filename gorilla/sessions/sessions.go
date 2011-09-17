@@ -111,6 +111,33 @@ func Save(r *http.Request, w http.ResponseWriter) []os.Error {
 	return DefaultSessionFactory.Save(r, w)
 }
 
+// Store returns a session store for the given key.
+func Store(key string) (SessionStore, os.Error) {
+	return DefaultSessionFactory.Store(key)
+}
+
+// SetStore registers a session store for the given key.
+func SetStore(key string, store SessionStore) {
+	DefaultSessionFactory.SetStore(key, store)
+}
+
+// SetStoreKeys defines authentication and encryption keys for the given store.
+//
+// See SessionFactory.SetStoreKeys.
+func SetStoreKeys(key string, pairs ...[]byte) (bool, os.Error) {
+	return DefaultSessionFactory.SetStoreKeys(key, pairs...)
+}
+
+// DefaultConfig returns the default session configuration used by the factory.
+func DefaultConfig() *SessionConfig {
+	return DefaultSessionFactory.DefaultConfig()
+}
+
+// SetDefaultConfig sets the default session configuration used by the factory.
+func SetDefaultConfig(config *SessionConfig) {
+	DefaultSessionFactory.SetDefaultConfig(config)
+}
+
 // ----------------------------------------------------------------------------
 // SessionFactory
 // ----------------------------------------------------------------------------
@@ -274,8 +301,8 @@ func (f *SessionFactory) DefaultConfig() *SessionConfig {
 }
 
 // SetDefaultConfig sets the default session configuration used by the factory.
-func (f *SessionFactory) SetDefaultConfig(config SessionConfig) {
-	f.defaultConfig = &config
+func (f *SessionFactory) SetDefaultConfig(config *SessionConfig) {
+	f.defaultConfig = config
 }
 
 // defaultConfigValue returns a copy of the default configuration.
