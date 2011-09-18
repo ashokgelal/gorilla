@@ -168,9 +168,5 @@ an example:
 
 Flash messages are useful to set information to be read after a redirection,
 usually after form submissions.
-
-And that's it. There's probably a little more to cover, but the API is ready
-to be explored. If you have any issues or want to suggest a feature or API
-improvement, please post it to our issue tracker. Thanks!
 */
 package sessions
