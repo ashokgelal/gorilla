@@ -69,6 +69,13 @@ type SessionConfig struct {
 	HttpOnly  bool
 }
 
+// SessionInfo stores internal references for a given session.
+type SessionInfo struct {
+	Data   SessionData
+	Store  SessionStore
+	Config SessionConfig
+}
+
 // ----------------------------------------------------------------------------
 // Convenience functions
 // ----------------------------------------------------------------------------
@@ -354,14 +361,6 @@ func getRequestSessions(f *SessionFactory,
 // requestSessions
 // ----------------------------------------------------------------------------
 
-// SessionInfo stores internal references for a given session.
-type SessionInfo struct {
-	Id     string
-	Data   SessionData
-	Store  SessionStore
-	Config SessionConfig
-}
-
 // requestSessions stores sessions in use for a given request.
 type requestSessions struct {
 	factory  *SessionFactory
@@ -420,7 +419,7 @@ func (s *requestSessions) Save(w http.ResponseWriter) []os.Error {
 	var ok bool
 	var errors []os.Error
 	for key, info := range s.sessions {
-		if ok, err = info.Store.Save(w, key, &info); !ok {
+		if ok, err = info.Store.Save(s.request, w, key, &info); !ok {
 			if errors == nil {
 				errors = []os.Error{err}
 			} else {
@@ -451,7 +450,7 @@ func sessionKeys(vars ...string) (string, string) {
 // SessionStore defines an interface for session stores.
 type SessionStore interface {
 	Load(r *http.Request, key string, info *SessionInfo)
-	Save(w http.ResponseWriter, key string, info *SessionInfo) (bool, os.Error)
+	Save(r *http.Request, w http.ResponseWriter, key string, info *SessionInfo) (bool, os.Error)
 	Encoders() []SessionEncoder
 	SetEncoders(encoders ...SessionEncoder)
 }
@@ -469,15 +468,15 @@ type CookieSessionStore struct {
 	encoders []SessionEncoder
 }
 
-// Get returns a session for the given key.
+// Load loads a session for the given key.
 func (s *CookieSessionStore) Load(r *http.Request, key string,
 								  info *SessionInfo) {
 	info.Data = GetCookie(s, r, key)
 }
 
 // Save saves the session in the response.
-func (s *CookieSessionStore) Save(w http.ResponseWriter, key string,
-								  info *SessionInfo) (bool, os.Error) {
+func (s *CookieSessionStore) Save(r *http.Request, w http.ResponseWriter,
+								  key string, info *SessionInfo) (bool, os.Error) {
 	return SetCookie(s, w, key, info)
 }
 
