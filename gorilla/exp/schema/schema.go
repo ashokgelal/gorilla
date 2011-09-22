@@ -5,43 +5,9 @@
 package schema
 
 import (
+	"fmt"
 	"os"
 )
-
-// ----------------------------------------------------------------------------
-// Interfaces
-// ----------------------------------------------------------------------------
-
-type NodeType interface {
-	Validate(node *Node, src interface{}) (interface{}, []os.Error)
-}
-
-type NodeFilter interface {
-	Filter(node *Node, src interface{}) interface{}
-}
-
-type NodeValidator interface {
-	Validate(node *Node, src interface{}) os.Error
-}
-
-// ----------------------------------------------------------------------------
-// NodeValues
-// ----------------------------------------------------------------------------
-
-// NodeValues stores flattened data for a validated node.
-type NodeValues struct {
-	// TODO
-}
-
-func (v *NodeValues) String(key string) (rv string) {
-	// TODO
-	return
-}
-
-func (v *NodeValues) Int64(key string) (rv int64) {
-	// TODO
-	return
-}
 
 // ----------------------------------------------------------------------------
 // Node
@@ -49,61 +15,86 @@ func (v *NodeValues) Int64(key string) (rv int64) {
 
 // Node represents a node in the schema.
 //
-// A node has a name, type, parent and children nodes, filters and validators.
-//
-// A node is immutable. When any field value is changed, a clone with the
-// updated value is returned.
+// A node stores a name, type, parent and children nodes, optional filter and
+// extra attributes.
 type Node struct {
-	name       string
-	ntype      NodeType
-	parent     *Node
-	children   []*Node
-	filters    []NodeFilter
-	validators []NodeValidator
-	required   bool
+	name      string
+	typ       NodeType
+	filter    NodeFilter
+	validator NodeValidator
+	parent    *Node
+	children  []*Node
+	attrs     map[string]string
 }
 
-// NewNode returns a new node with the given name, type and validators.
-func NewNode(name string, ntype NodeType, validators ...NodeValidator) *Node {
+// NewNode returns a new node with the given name and type.
+func NewNode(name string, typ NodeType) *Node {
+	if name == "" {
+		// TODO generate a dummy name?
+		panic("Node name is required.")
+	}
 	return &Node{
-		name:       name,
-		ntype:      ntype,
-		validators: validators,
-		required:   true,
+		name: name,
+		typ:  typ,
 	}
 }
 
-// Clone clones this node and all child nodes.
-func (n *Node) Clone() *Node {
+// Clone clones this node and, if deep is true, all its child nodes.
+//
+// The returned node doesn't have a parent set.
+func (n *Node) Clone(deep bool) *Node {
 	node := &Node{
-		name:       n.name,
-		ntype:      n.ntype,
-		parent:     n.parent,
-		filters:    n.filters,
-		validators: n.validators,
+		name:      n.name,
+		typ:       n.typ,
+		filter:    n.filter,
+		validator: n.validator,
 	}
-	var children []*Node
-	if n.children != nil {
+	if deep && n.children != nil {
 		// Clone all child nodes resetting the parent.
-		children = make([]*Node, len(n.children))
+		node.children = make([]*Node, len(n.children))
+		var child *Node
 		for k, v := range n.children {
-			children[k] = v.SetParent(node)
+			child = v.Clone(deep)
+			child.setParent(node)
+			node.children[k] = child
 		}
 	}
-	node.children = children
+	if n.attrs != nil {
+		// Clone all attributes.
+		node.attrs = make(map[string]string)
+		for k, v := range n.attrs {
+			node.attrs[k] = v
+		}
+	}
 	return node
 }
 
-// Add returns a clone of this node with a new child appended.
-func (n *Node) Add(child *Node) *Node {
-	clone := n.Clone()
-	child = child.SetParent(clone)
-	if clone.children == nil {
-		clone.children = []*Node{child}
-	} else {
-		clone.children = append(clone.children, child)
+// Attr returns the value of an extra attribute with the given key, if any.
+func (n *Node) Attr(key string) (rv string) {
+	if n.attrs != nil {
+		if v, ok := n.attrs[key]; ok {
+			rv = v
+		}
 	}
-	return clone
+	return
+}
+
+// SetAttrs sets extra key/value attributes for this node.
+func (n *Node) SetAttrs(pairs ...string) *Node {
+	if n.attrs == nil {
+		n.attrs = make(map[string]string)
+	} else {
+		for k, _ := range n.attrs {
+			n.attrs[k] = "", false
+		}
+	}
+	length := len(pairs)
+	for i := 0; i < length; i += 2 {
+		if i+1 < length {
+			n.attrs[pairs[i]] = pairs[i+1]
+		}
+	}
+	return n
 }
 
 // Children returns the array of child nodes of this node.
@@ -111,28 +102,38 @@ func (n *Node) Children() []*Node {
 	return n.children
 }
 
-// Filters returns the filters of this node.
-func (n *Node) Filters() []NodeFilter {
-	return n.filters
-}
-
-// SetFilters returns a clone of this node with the given filters.
-func (n *Node) SetFilters(filters ...NodeFilter) *Node {
-	clone := n.Clone()
-	clone.filters = filters
-	return clone
+// Add appends a child to this node.
+func (n *Node) Add(child *Node) *Node {
+	if child.Parent() != nil {
+		panic("Child node already has a parent.")
+	}
+	child.setParent(n)
+	if n.children == nil {
+		n.children = make([]*Node, 0)
+	}
+	n.children = append(n.children, child)
+	return n
 }
 
 // Name returns the name of this node.
+//
+// The returned name is concatenated with parent names in dotted notation.
 func (n *Node) Name() string {
+	if n.parent != nil {
+		return fmt.Sprintf("%s.%s", n.parent.Name(), n.name)
+	}
 	return n.name
 }
 
-// SetName returns a clone of this node with a new name.
+// SimpleName returns the name of this node without parent names.
+func (n *Node) SimpleName() string {
+	return n.name
+}
+
+// SetName sets this node's name.
 func (n *Node) SetName(name string) *Node {
-	clone := n.Clone()
-	clone.name = name
-	return clone
+	n.name = name
+	return n
 }
 
 // Parent returns the parent node of this node.
@@ -140,55 +141,68 @@ func (n *Node) Parent() *Node {
 	return n.parent
 }
 
-// SetParent returns a clone of this node with a new parent.
-func (n *Node) SetParent(parent *Node) *Node {
-	clone := n.Clone()
-	clone.parent = parent
-	return clone
+// SetParent sets this node's parent.
+func (n *Node) setParent(parent *Node) *Node {
+	n.parent = parent
+	return n
 }
 
-// Required returns the required flag of this node.
-func (n *Node) Required() bool {
-	return n.required
-}
-
-// SetRequired returns a clone of this node with a new required flag.
-func (n *Node) SetRequired(required bool) *Node {
-	clone := n.Clone()
-	clone.required = required
-	return clone
-}
-
-// Type returns the type of this node.
+// Type returns this node's type.
 func (n *Node) Type() NodeType {
-	return n.ntype
+	return n.typ
 }
 
-// SetType returns a clone of this node with a new type.
-func (n *Node) SetType(ntype NodeType) *Node {
-	clone := n.Clone()
-	clone.ntype = ntype
-	return clone
+// SetType sets this node's type.
+func (n *Node) SetType(typ NodeType) *Node {
+	n.typ = typ
+	return n
 }
 
-// Validators returns the validators of this node.
-func (n *Node) Validators() []NodeValidator {
-	return n.validators
+// Filter returns the filter of this node.
+func (n *Node) Filter() NodeFilter {
+	return n.filter
 }
 
-// SetValidators returns a clone of this node with the given validators.
-func (n *Node) SetValidators(validators ...NodeValidator) *Node {
-	clone := n.Clone()
-	clone.validators = validators
-	return clone
+// SetFilter sets this node's filter.
+func (n *Node) SetFilter(filter NodeFilter) *Node {
+	n.filter = filter
+	return n
 }
 
-func (n *Node) Validate(data interface{}) (val *NodeValues, err []os.Error) {
-	// TODO: alow data to be struct or map; return error if not one of them.
-	//       Convert struct to map before validating?
-	val = new(NodeValues)
+// SetFilterFunc sets this node's filter, as a function.
+func (n *Node) SetFilterFunc(filter FilterFunc) *Node {
+	n.filter = &simpleFilter{f: filter}
+	return n
+}
 
-	// TODO
+// Validator returns the validator of this node.
+func (n *Node) Validator() NodeValidator {
+	return n.validator
+}
+
+// SetValidator sets this node's validator.
+func (n *Node) SetValidator(validator NodeValidator) *Node {
+	n.validator = validator
+	return n
+}
+
+// SetValidatorFunc sets this node's validator, as a function.
+func (n *Node) SetValidatorFunc(validator ValidatorFunc) *Node {
+	n.validator = &simpleValidator{f: validator}
+	return n
+}
+
+func (n *Node) Serialize(src map[string][]string, val *NodeValues) (errors []os.Error) {
+	/*
+	Problems to solve here:
+
+	- Each type must check if the value is set.
+	- If set, prepare value for type conversion -> call filter, if any.
+	- Type conversion.
+	- Validation -> call validator, if any.
+
+	*/
+	n.typ.Serialize(n, src, val)
 	return
 }
 
@@ -196,59 +210,127 @@ func (n *Node) Validate(data interface{}) (val *NodeValues, err []os.Error) {
 // Node factories
 // ----------------------------------------------------------------------------
 
-// Int64 returns a Int64Type node with the given name and validators.
-func Int64(name string, validators ...NodeValidator) *Node {
-	return NewNode(name, int64Type, validators...)
+// Bool returns a new node with the given name and type bool.
+func Bool(name string) *Node {
+	return NewNode(name, boolType)
 }
 
-// Map returns a MapType node with the given name and validators.
-func Map(name string, validators ...NodeValidator) *Node {
-	return NewNode(name, mapType, validators...)
+// Float32 returns a new node with the given name and type float32.
+func Float32(name string) *Node {
+	return NewNode(name, float32Type)
 }
 
-// String returns a StringType node with the given name and validators.
-func String(name string, validators ...NodeValidator) *Node {
-	return NewNode(name, stringType, validators...)
+// Float64 returns a new node with the given name and type float64.
+func Float64(name string) *Node {
+	return NewNode(name, float64Type)
+}
+
+// Int returns a new node with the given name and type int.
+func Int(name string) *Node {
+	return NewNode(name, intType)
+}
+
+// Int8 returns a new node with the given name and type int8.
+func Int8(name string) *Node {
+	return NewNode(name, int8Type)
+}
+
+// Int16 returns a new node with the given name and type int16.
+func Int16(name string) *Node {
+	return NewNode(name, int16Type)
+}
+
+// Int32 returns a new node with the given name and type int32.
+func Int32(name string) *Node {
+	return NewNode(name, int32Type)
+}
+
+// Int64 returns a new node with the given name and type int64.
+func Int64(name string) *Node {
+	return NewNode(name, int64Type)
+}
+
+// Map returns a new node with the given name and type map.
+func Map(name string) *Node {
+	return NewNode(name, mapType)
+}
+
+// String returns a new node with the given name and type string.
+func String(name string) *Node {
+	return NewNode(name, stringType)
 }
 
 // ----------------------------------------------------------------------------
-// Int64Type
+// NodeValues
 // ----------------------------------------------------------------------------
 
-var int64Type = &Int64Type{}
-
-type Int64Type struct {
+// NodeValues stores flattened data for a serialized node.
+type NodeValues struct {
+	Values map[string]interface{}
+	Errors map[string]os.Error
 }
 
-func (t *Int64Type) Validate(node *Node, src interface{}) (dst interface{}, errors []os.Error) {
-	// TODO
+// Get returns a value for a flattened key, or nil if it is not set.
+func (v *NodeValues) Get(key string) (rv interface{}) {
+	if v.Values != nil {
+		if value, ok := v.Values[key]; ok {
+			rv = value
+		}
+	}
 	return
 }
 
-// ----------------------------------------------------------------------------
-// MapType
-// ----------------------------------------------------------------------------
-
-var mapType = &MapType{}
-
-type MapType struct {
-}
-
-func (t *MapType) Validate(node *Node, src interface{}) (dst interface{}, errors []os.Error) {
-	// TODO
-	return
+// Set sets a value for a flattened key.
+func (v *NodeValues) Set(key string, val interface{}) {
+	if v.Values == nil {
+		v.Values = make(map[string]interface{})
+	}
+	v.Values[key] = val
 }
 
 // ----------------------------------------------------------------------------
-// StringType
+// Interfaces
 // ----------------------------------------------------------------------------
 
-var stringType = &StringType{}
-
-type StringType struct {
+// NodeType
+type NodeType interface {
+	Serialize(*Node, map[string][]string, *NodeValues)
 }
 
-func (t *StringType) Validate(node *Node, src interface{}) (dst interface{}, errors []os.Error) {
-	// TODO
-	return
+// NodeFilter
+type NodeFilter interface {
+	Filter(*Node, interface{}) (interface{}, os.Error)
+}
+
+// NodeValidator
+type NodeValidator interface {
+	Validate(*Node, interface{}) os.Error
+}
+
+// ----------------------------------------------------------------------------
+
+// FilterFunc is a convenience type to set a filter with a simple function.
+type FilterFunc func(*Node, interface{}) (interface{}, os.Error)
+
+// Convenience for FilterFunc.
+type simpleFilter struct {
+	f FilterFunc
+}
+
+func (f *simpleFilter) Filter(n *Node, i interface{}) (interface{}, os.Error) {
+	return f.f(n, i)
+}
+
+// ----------------------------------------------------------------------------
+
+// ValidatorFunc is a convenience type to set a validator with a simple function.
+type ValidatorFunc func(*Node, interface{}) os.Error
+
+// Convenience for ValidatorFunc.
+type simpleValidator struct {
+	f ValidatorFunc
+}
+
+func (v *simpleValidator) Validate(n *Node, i interface{}) os.Error {
+	return v.f(n, i)
 }
