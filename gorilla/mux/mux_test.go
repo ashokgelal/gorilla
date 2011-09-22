@@ -514,3 +514,69 @@ func TestVariableNames(t *testing.T) {
 		t.Errorf("Expected %v variable names in %v.", len(*names), *names)
 	}
 }
+
+/*
+func TestNewRegexp(t *testing.T) {
+	var p *parsedTemplate
+	var matches []string
+
+	tests := map[string]map[string][]string{
+		"/{foo:a{2}}": {
+			"/a":    nil,
+			"/aa":   {"aa"},
+			"/aaa":  nil,
+			"/aaaa": nil,
+		},
+		"/{foo:a{2,}}": {
+			"/a":    nil,
+			"/aa":   {"aa"},
+			"/aaa":  {"aaa"},
+			"/aaaa": {"aaaa"},
+		},
+		"/{foo:a{2,3}}": {
+			"/a":    nil,
+			"/aa":   {"aa"},
+			"/aaa":  {"aaa"},
+			"/aaaa": nil,
+		},
+		"/{foo:[a-z]{4}}/{bar:[a-z]{2}}": {
+			"/a":       nil,
+			"/ab":      nil,
+			"/abc":     nil,
+			"/abcd":    nil,
+			"/abcd/a":  nil,
+			"/abcd/ab": {"abcd", "ab"},
+		},
+		`/{foo:\w{3,}}/{bar:\d{2,}}`: {
+			"/a":        nil,
+			"/ab":       nil,
+			"/abc":      nil,
+			"/abc/1":    nil,
+			"/abc/12":   {"abc", "12"},
+			"/abcd/12":  {"abcd", "12"},
+			"/abcd/123": {"abcd", "123"},
+		},
+	}
+
+	for pattern, paths := range tests {
+		p = parseTemplate(pattern, "[^/]+", false, nil)
+		for path, result := range paths {
+			matches = p.Regexp.FindStringSubmatch(path)
+			if result == nil {
+				if matches != nil {
+					t.Errorf("%v should not match %v.", pattern, path)
+				}
+			} else {
+				if len(matches) != len(result) + 1 {
+					t.Errorf("Expected %v matches, got %v.", len(result) + 1 , len(matches))
+				}
+				for k, v := range result {
+					if matches[k+1] != v {
+						t.Errorf("Expected %v, got %v.", v, matches[k])
+					}
+				}
+			}
+		}
+	}
+}
+*/
