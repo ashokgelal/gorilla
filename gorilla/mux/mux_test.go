@@ -539,13 +539,14 @@ func TestNewRegexp(t *testing.T) {
 			"/aaa":  {"aaa"},
 			"/aaaa": nil,
 		},
-		"/{foo:[a-z]{4}}/{bar:[a-z]{2}}": {
+		"/{foo:[a-z]{3}}/{bar:[a-z]{2}}": {
 			"/a":       nil,
 			"/ab":      nil,
 			"/abc":     nil,
 			"/abcd":    nil,
-			"/abcd/a":  nil,
-			"/abcd/ab": {"abcd", "ab"},
+			"/abc/ab":  {"abc", "ab"},
+			"/abc/abc": nil,
+			"/abcd/ab": nil,
 		},
 		`/{foo:\w{3,}}/{bar:\d{2,}}`: {
 			"/a":        nil,
@@ -568,11 +569,12 @@ func TestNewRegexp(t *testing.T) {
 				}
 			} else {
 				if len(matches) != len(result) + 1 {
-					t.Errorf("Expected %v matches, got %v.", len(result) + 1 , len(matches))
-				}
-				for k, v := range result {
-					if matches[k+1] != v {
-						t.Errorf("Expected %v, got %v.", v, matches[k])
+					t.Errorf("Expected %v matches, got %v.", len(result)+1 , len(matches))
+				} else {
+					for k, v := range result {
+						if matches[k+1] != v {
+							t.Errorf("Expected %v, got %v.", v, matches[k+1])
+						}
 					}
 				}
 			}
