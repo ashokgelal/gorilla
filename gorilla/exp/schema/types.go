@@ -11,8 +11,8 @@ import (
 	"strings"
 )
 
-// All types
-// =========
+// All built-in types
+// ==================
 // Basic types: Bool, Float32, Float64, Int, Int8, Int16, Int32, Int64, String
 //
 // Composite types: Map
@@ -39,8 +39,7 @@ type BoolType struct {
 }
 
 // Serialize
-func (t *BoolType) Serialize(node *Node, src map[string][]string,
-	dst *NodeValues) {
+func (t *BoolType) Serialize(node *Node, src RawData, dst NodeData) {
 	// TODO
 }
 
@@ -53,8 +52,7 @@ type Float32Type struct {
 }
 
 // Serialize
-func (t *Float32Type) Serialize(node *Node, src map[string][]string,
-	dst *NodeValues) {
+func (t *Float32Type) Serialize(node *Node, src RawData, dst NodeData) {
 	serializeFloat(node, src, dst, reflect.Float32)
 }
 
@@ -65,18 +63,16 @@ type Float64Type struct {
 }
 
 // Serialize
-func (t *Float64Type) Serialize(node *Node, src map[string][]string,
-	dst *NodeValues) {
+func (t *Float64Type) Serialize(node *Node, src RawData, dst NodeData) {
 	serializeFloat(node, src, dst, reflect.Float64)
 }
 
 // ----------------------------------------------------------------------------
 
 // serializeFloat
-func serializeFloat(node *Node, src map[string][]string, dst *NodeValues,
-	kind reflect.Kind) {
+func serializeFloat(node *Node, src RawData, dst NodeData, kind reflect.Kind) {
 	name := node.Name()
-	values, ok := src[name]; if ok && len(values) > 0 {
+	if values := src.Get(name); values != nil && len(values) > 0 {
 		value, err := strconv.Atof64(strings.TrimSpace(values[0]))
 		if err != nil {
 			// TODO add error to the list of errors.
@@ -100,8 +96,7 @@ type IntType struct {
 }
 
 // Serialize
-func (t *IntType) Serialize(node *Node, src map[string][]string,
-	dst *NodeValues) {
+func (t *IntType) Serialize(node *Node, src RawData, dst NodeData) {
 	serializeInt(node, src, dst, reflect.Int)
 }
 
@@ -112,8 +107,7 @@ type Int8Type struct {
 }
 
 // Serialize
-func (t *Int8Type) Serialize(node *Node, src map[string][]string,
-	dst *NodeValues) {
+func (t *Int8Type) Serialize(node *Node, src RawData, dst NodeData) {
 	serializeInt(node, src, dst, reflect.Int8)
 }
 
@@ -124,8 +118,7 @@ type Int16Type struct {
 }
 
 // Serialize
-func (t *Int16Type) Serialize(node *Node, src map[string][]string,
-	dst *NodeValues) {
+func (t *Int16Type) Serialize(node *Node, src RawData, dst NodeData) {
 	serializeInt(node, src, dst, reflect.Int16)
 }
 
@@ -136,8 +129,7 @@ type Int32Type struct {
 }
 
 // Serialize
-func (t *Int32Type) Serialize(node *Node, src map[string][]string,
-	dst *NodeValues) {
+func (t *Int32Type) Serialize(node *Node, src RawData, dst NodeData) {
 	serializeInt(node, src, dst, reflect.Int32)
 }
 
@@ -148,18 +140,16 @@ type Int64Type struct {
 }
 
 // Serialize
-func (t *Int64Type) Serialize(node *Node, src map[string][]string,
-	dst *NodeValues) {
+func (t *Int64Type) Serialize(node *Node, src RawData, dst NodeData) {
 	serializeInt(node, src, dst, reflect.Int64)
 }
 
 // ----------------------------------------------------------------------------
 
 // serializeInt
-func serializeInt(node *Node, src map[string][]string, dst *NodeValues,
-	kind reflect.Kind) {
+func serializeInt(node *Node, src RawData, dst NodeData,	kind reflect.Kind) {
 	name := node.Name()
-	values, ok := src[name]; if ok && len(values) > 0 {
+	if values := src.Get(name); values != nil && len(values) > 0 {
 		value, err := strconv.Atoi64(strings.TrimSpace(values[0]))
 		if err != nil {
 			// TODO add error to the list of errors.
@@ -182,7 +172,7 @@ func serializeInt(node *Node, src map[string][]string, dst *NodeValues,
 }
 
 // ----------------------------------------------------------------------------
-// MapType
+// Map
 // ----------------------------------------------------------------------------
 
 // MapType serializes and deserializes a map[string]interface{} type.
@@ -190,14 +180,14 @@ type MapType struct {
 }
 
 // Serialize
-func (t *MapType) Serialize(node *Node, src map[string][]string, val *NodeValues) {
+func (t *MapType) Serialize(node *Node, src RawData, val NodeData) {
 	for _, n := range node.Children() {
 		n.Serialize(src, val)
 	}
 }
 
 // ----------------------------------------------------------------------------
-// StringType
+// String
 // ----------------------------------------------------------------------------
 
 // StringType serializes and deserializes a string type.
@@ -205,11 +195,11 @@ type StringType struct {
 }
 
 // Serialize
-func (t *StringType) Serialize(node *Node, src map[string][]string, val *NodeValues) {
+func (t *StringType) Serialize(node *Node, src RawData, val NodeData) {
 	// TODO add error to the list of errors.
 	var value string
 	name := node.Name()
-	values, ok := src[name]; if ok && len(values) > 0 {
+	if values := src.Get(name); values != nil && len(values) > 0 {
 		value = values[0]
 	}
 	val.Set(name, value)

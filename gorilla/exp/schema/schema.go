@@ -192,7 +192,8 @@ func (n *Node) SetValidatorFunc(validator ValidatorFunc) *Node {
 	return n
 }
 
-func (n *Node) Serialize(src map[string][]string, val *NodeValues) (errors []os.Error) {
+// Serialize
+func (n *Node) Serialize(src RawData, dst NodeData) (errors []os.Error) {
 	/*
 	Problems to solve here:
 
@@ -201,8 +202,29 @@ func (n *Node) Serialize(src map[string][]string, val *NodeValues) (errors []os.
 	- Type conversion.
 	- Validation -> call validator, if any.
 
+	Side notes:
+	- types must be able to access other type values -> solve the 'validate password confimartion' problem.
+
 	*/
-	n.typ.Serialize(n, src, val)
+	if n.filter != nil {
+		v, err := n.filter.Filter(n, "TODO")
+		if err != nil {
+			// TODO
+		}
+		if v == nil {
+			// TODO
+		}
+	}
+
+	n.typ.Serialize(n, src, dst)
+
+	if n.validator != nil {
+		err := n.validator.Validate(n, "TODO")
+		if err != nil {
+			// TODO
+		}
+	}
+
 	return
 }
 
@@ -261,19 +283,36 @@ func String(name string) *Node {
 }
 
 // ----------------------------------------------------------------------------
+// UrlValues
+// ----------------------------------------------------------------------------
+
+// UrlValues wraps data provided using a map. Typically, url.Values.
+type UrlValues struct{
+	Raw map[string][]string
+}
+
+// Get
+func (v *UrlValues) Get(key string) []string {
+	if values, ok := v.Raw[key]; ok {
+		return values
+	}
+	return nil
+}
+
+// ----------------------------------------------------------------------------
 // NodeValues
 // ----------------------------------------------------------------------------
 
 // NodeValues stores flattened data for a serialized node.
 type NodeValues struct {
-	Values map[string]interface{}
-	Errors map[string]os.Error
+	values map[string]interface{}
+	errors map[string]os.Error
 }
 
 // Get returns a value for a flattened key, or nil if it is not set.
 func (v *NodeValues) Get(key string) (rv interface{}) {
-	if v.Values != nil {
-		if value, ok := v.Values[key]; ok {
+	if v.values != nil {
+		if value, ok := v.values[key]; ok {
 			rv = value
 		}
 	}
@@ -282,10 +321,21 @@ func (v *NodeValues) Get(key string) (rv interface{}) {
 
 // Set sets a value for a flattened key.
 func (v *NodeValues) Set(key string, val interface{}) {
-	if v.Values == nil {
-		v.Values = make(map[string]interface{})
+	if v.values == nil {
+		v.values = make(map[string]interface{})
 	}
-	v.Values[key] = val
+	v.values[key] = val
+}
+
+// Values
+func (v *NodeValues) Values() interface{} {
+	return v.values
+}
+
+// Errors
+func (v *NodeValues) Errors() interface{} {
+	// TODO
+	return nil
 }
 
 // ----------------------------------------------------------------------------
@@ -294,7 +344,7 @@ func (v *NodeValues) Set(key string, val interface{}) {
 
 // NodeType
 type NodeType interface {
-	Serialize(*Node, map[string][]string, *NodeValues)
+	Serialize(*Node, RawData, NodeData)
 }
 
 // NodeFilter
@@ -305,6 +355,23 @@ type NodeFilter interface {
 // NodeValidator
 type NodeValidator interface {
 	Validate(*Node, interface{}) os.Error
+}
+
+// RawData is the interface for data providers.
+//
+// TODO: this interface is not set in stone.
+type RawData interface {
+	Get(key string) []string
+}
+
+// NodeData is the interface to store validated values and validation errors.
+//
+// TODO: this interface is not set in stone.
+type NodeData interface {
+	Get(key string) interface{}
+	Set(key string, val interface{})
+	Values() interface{}
+	Errors() interface{}
 }
 
 // ----------------------------------------------------------------------------
