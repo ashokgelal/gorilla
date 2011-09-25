@@ -86,6 +86,8 @@ type Router struct {
 	NamedRoutes map[string]*Route
 	// Reference to the root router, where named routes are stored.
 	rootRouter  *Router
+	// Configurable Handler to be used when no route matches.
+	NotFoundHandler http.Handler
 }
 
 // root returns the root router, where named routes are stored.
@@ -123,7 +125,10 @@ func (r *Router) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		handler = route.GetHandler()
 	}
 	if handler == nil {
-		handler = http.NotFoundHandler()
+		if r.NotFoundHandler == nil {
+			r.NotFoundHandler = http.NotFoundHandler()
+		}
+		handler = r.NotFoundHandler
 	}
 	defer context.DefaultContext.Clear(request)
 	handler.ServeHTTP(writer, request)
