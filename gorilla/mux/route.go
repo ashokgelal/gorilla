@@ -303,6 +303,8 @@ func (r *Route) addMatcher(m routeMatcher) *Route {
 //                 "X-Requested-With", "XMLHttpRequest")
 //
 // The above route will only match if both request header values match.
+//
+// It the value is an empty string, it will match any value if the key is set.
 func (r *Route) Headers(pairs ...string) *Route {
 	headers := stringMapFromPairs(errOddHeaders, pairs...)
 	if len(headers) == 0 {
@@ -402,6 +404,8 @@ func (r *Route) PathPrefix(template string) *Route {
 //
 // The above route will only match if the URL contains the defined queries
 // values, e.g.: ?foo=bar&baz=ding.
+//
+// It the value is an empty string, it will match any value if the key is set.
 func (r *Route) Queries(pairs ...string) *Route {
 	queries := stringMapFromPairs(errOddQueries, pairs...)
 	if len(queries) == 0 {
