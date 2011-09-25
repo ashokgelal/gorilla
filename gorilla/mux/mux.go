@@ -72,14 +72,6 @@ type Router struct {
 	rootRouter  *Router
 }
 
-// NewRouter returns a new Router instance.
-func NewRouter() *Router {
-	return &Router{
-		Routes:      make([]*Route, 0),
-		NamedRoutes: make(map[string]*Route, 0),
-	}
-}
-
 // root returns the root router, where named routes are stored.
 func (r *Router) root() *Router {
 	if r.rootRouter == nil {
@@ -89,15 +81,13 @@ func (r *Router) root() *Router {
 }
 
 // Match matches registered routes against the request.
-func (r *Router) Match(request *http.Request) (*Route, bool) {
-	var rv *Route
-	var ok bool
+func (r *Router) Match(request *http.Request) (rv *Route, ok bool) {
 	for _, route := range r.Routes {
 		if rv, ok = route.Match(request); ok {
-			return rv, ok
+			return
 		}
 	}
-	return nil, false
+	return
 }
 
 // ServeHTTP dispatches the handler registered in the matched route.
@@ -127,6 +117,9 @@ func (r *Router) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 
 // NewRoute creates an empty route and registers it in the router.
 func (r *Router) NewRoute() *Route {
+	if r.Routes == nil {
+		r.Routes = make([]*Route, 0)
+	}
 	route := newRoute()
 	route.router = r
 	r.Routes = append(r.Routes, route)
@@ -232,7 +225,7 @@ func (r *Router) Schemes(schemes ...string) *Route {
 // Default Router
 // ----------------------------------------------------------------------------
 
-var DefaultRouter = NewRouter()
+var DefaultRouter = new(Router)
 var NamedRoutes = DefaultRouter.NamedRoutes
 
 // Convenience route factories ------------------------------------------------
@@ -391,15 +384,6 @@ func (r *Route) Clone() *Route {
 //
 // It sets variables from the matched route in the context, if any.
 func (r *Route) Match(req *http.Request) (*Route, bool) {
-	// TODO Match the path unescaped?
-	/*
-	if path, ok := url.URLUnescape(r.URL.Path); ok {
-		// URLUnescape converts '+' into ' ' (space). Revert this.
-		path = strings.Replace(path, " ", "+", -1)
-	} else {
-		path = r.URL.Path
-	}
-	*/
 	var hostMatches, pathMatches []string
 	if r.hostTemplate != nil {
 		hostMatches = r.hostTemplate.Regexp.FindStringSubmatch(req.URL.Host)
@@ -408,6 +392,15 @@ func (r *Route) Match(req *http.Request) (*Route, bool) {
 		}
 	}
 	if r.pathTemplate != nil {
+		// TODO Match the path unescaped?
+		/*
+		if path, ok := url.URLUnescape(r.URL.Path); ok {
+			// URLUnescape converts '+' into ' ' (space). Revert this.
+			path = strings.Replace(path, " ", "+", -1)
+		} else {
+			path = r.URL.Path
+		}
+		*/
 		pathMatches = r.pathTemplate.Regexp.FindStringSubmatch(req.URL.Path)
 		if pathMatches == nil {
 			return nil, false
@@ -600,6 +593,9 @@ func (r *Route) HandleFunc(path string, handler func(http.ResponseWriter,
 // registered already.
 func (r *Route) Name(name string) *Route {
 	router := r.router.root()
+	if router.NamedRoutes == nil {
+		router.NamedRoutes = make(map[string]*Route)
+	}
 	if _, ok := router.NamedRoutes[name]; ok {
 		panic(fmt.Sprintf(errRouteName, name))
 	}

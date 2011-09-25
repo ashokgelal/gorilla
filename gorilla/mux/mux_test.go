@@ -14,7 +14,7 @@ func TestRouteMatchers(t *testing.T) {
 	var headers map[string]string
 	var resultVars map[bool]map[string]string
 
-	router := NewRouter()
+	router := new(Router)
 	router.Host("{var1}.google.com").
 		   Path("/{var2:[a-z]+}/{var3:[0-9]+}").
 		   Queries("foo", "bar").
@@ -196,13 +196,13 @@ type hostMatcherTest struct {
 
 var hostMatcherTests = []hostMatcherTest{
 	{
-		matcher: NewRouter().Host("{foo:[a-z][a-z][a-z]}.{bar:[a-z][a-z][a-z]}.{baz:[a-z][a-z][a-z]}"),
+		matcher: new(Router).Host("{foo:[a-z][a-z][a-z]}.{bar:[a-z][a-z][a-z]}.{baz:[a-z][a-z][a-z]}"),
 		url:     "http://abc.def.ghi/",
 		vars:    map[string]string{"foo": "abc", "bar": "def", "baz": "ghi"},
 		result:  true,
 	},
 	{
-		matcher: NewRouter().Host("{foo:[a-z][a-z][a-z]}.{bar:[a-z][a-z][a-z]}.{baz:[a-z][a-z][a-z]}"),
+		matcher: new(Router).Host("{foo:[a-z][a-z][a-z]}.{bar:[a-z][a-z][a-z]}.{baz:[a-z][a-z][a-z]}"),
 		url:     "http://a.b.c/",
 		vars:    map[string]string{"foo": "abc", "bar": "def", "baz": "ghi"},
 		result:  false,
@@ -247,13 +247,13 @@ type pathMatcherTest struct {
 
 var pathMatcherTests = []pathMatcherTest{
 	{
-		matcher: NewRouter().Path("/{foo:[0-9][0-9][0-9]}/{bar:[0-9][0-9][0-9]}/{baz:[0-9][0-9][0-9]}"),
+		matcher: new(Router).Path("/{foo:[0-9][0-9][0-9]}/{bar:[0-9][0-9][0-9]}/{baz:[0-9][0-9][0-9]}"),
 		url:     "http://localhost:8080/123/456/789",
 		vars:    map[string]string{"foo": "123", "bar": "456", "baz": "789"},
 		result:  true,
 	},
 	{
-		matcher: NewRouter().Path("/{foo:[0-9][0-9][0-9]}/{bar:[0-9][0-9][0-9]}/{baz:[0-9][0-9][0-9]}"),
+		matcher: new(Router).Path("/{foo:[0-9][0-9][0-9]}/{bar:[0-9][0-9][0-9]}/{baz:[0-9][0-9][0-9]}"),
 		url:     "http://localhost:8080/1/2/3",
 		vars:    map[string]string{"foo": "123", "bar": "456", "baz": "789"},
 		result:  false,
@@ -489,7 +489,7 @@ func TestUrlBuilding(t *testing.T) {
 
 func TestSubRouting(t *testing.T) {
 	// Example from docs.
-	router := NewRouter()
+	router := new(Router)
 	subrouter := router.Host("www.domain.com").NewRouter()
 	route := subrouter.Path("/products/").Name("products")
 
