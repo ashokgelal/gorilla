@@ -20,6 +20,11 @@ var DefaultRouter = new(Router)
 // NamedRoutes is the DefaultRouter's NamedRoutes field.
 var NamedRoutes = DefaultRouter.NamedRoutes
 
+// AddRoute registers a route in the default router.
+func AddRoute(route *Route) *Router {
+	return DefaultRouter.AddRoute(route)
+}
+
 // Route factories ------------------------------------------------------------
 
 // NewRoute creates an empty route and registers it in the router.

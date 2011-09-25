@@ -134,16 +134,22 @@ func (r *Router) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	handler.ServeHTTP(writer, request)
 }
 
+// AddRoute registers a route in the router.
+func (r *Router) AddRoute(route *Route) *Router {
+	if r.Routes == nil {
+		r.Routes = make([]*Route, 0)
+	}
+	route.router = r
+	r.Routes = append(r.Routes, route)
+	return r
+}
+
 // Convenience route factories ------------------------------------------------
 
 // NewRoute creates an empty route and registers it in the router.
 func (r *Router) NewRoute() *Route {
-	if r.Routes == nil {
-		r.Routes = make([]*Route, 0)
-	}
 	route := newRoute()
-	route.router = r
-	r.Routes = append(r.Routes, route)
+	r.AddRoute(route)
 	return route
 }
 
