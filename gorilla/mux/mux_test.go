@@ -181,6 +181,11 @@ var headerMatcherTests = []headerMatcherTest{
 		result:  true,
 	},
 	{
+		matcher: &headerMatcher{map[string]string{"x-requested-with": ""}},
+		headers: map[string]string{"X-Requested-With": "anything"},
+		result:  true,
+	},
+	{
 		matcher: &headerMatcher{map[string]string{"x-requested-with": "XMLHttpRequest"}},
 		headers: map[string]string{},
 		result:  false,
@@ -270,6 +275,11 @@ var queryMatcherTests = []queryMatcherTest{
 	{
 		matcher: &queryMatcher{map[string]string{"foo": "bar", "baz": "ding"}},
 		url:     "http://localhost:8080/?foo=bar&baz=ding",
+		result:  true,
+	},
+	{
+		matcher: &queryMatcher{map[string]string{"foo": "", "baz": ""}},
+		url:     "http://localhost:8080/?foo=anything&baz=anything",
 		result:  true,
 	},
 	{
