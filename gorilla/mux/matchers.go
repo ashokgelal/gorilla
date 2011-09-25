@@ -85,23 +85,18 @@ func matchInArray(arr []string, value string) bool {
 // matchMap returns true if the given key/value pairs exist in a given map.
 func matchMap(toCheck map[string]string, toMatch map[string][]string,
 			  canonicalKey bool) bool {
-	var keyExists, valueExists bool
-	var values []string
-	var value string
 	for k, v := range toCheck {
 		// Check if key exists.
 		if canonicalKey {
 			k = http.CanonicalHeaderKey(k)
 		}
-		values, keyExists = toMatch[k]
-		if !keyExists {
+		if values, keyExists := toMatch[k]; !keyExists {
 			return false
-		}
-		if v != "" {
+		} else if v != "" {
 			// If value was defined as an empty string we only check that the
 			// key exists. Otherwise we also check if the value exists.
-			valueExists = false
-			for _, value = range values {
+			valueExists := false
+			for _, value := range values {
 				if v == value {
 					valueExists = true
 					break

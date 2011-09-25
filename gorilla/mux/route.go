@@ -515,8 +515,7 @@ func parseTemplate(template string, defaultPattern string,
 func findAllVariableIndex(s string) []int {
 	var level, idx int
 	idxs := make([]int, 0)
-	size := len(s)
-	for i := 0; i < size; i++ {
+	for i := 0; i < len(s); i++ {
 		switch s[i] {
 		case '{':
 			if level++; level == 1 {
