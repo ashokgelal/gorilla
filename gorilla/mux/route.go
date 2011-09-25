@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"http"
+	"os"
 	"regexp"
 	"strings"
 	"url"
@@ -175,75 +176,123 @@ func (r *Route) NewRouter() *Router {
 //
 // All variable names defined in the route are required, and their values must
 // conform to the corresponding patterns, if any.
-func (r *Route) URL(pairs ...string) *url.URL {
+//
+// In case of bad arguments it will return nil.
+func (r *Route) URL(pairs ...string) (rv *url.URL) {
+	rv, _ = r.URLDebug(pairs...)
+	return
+}
+
+// URLDebug is a debug version of URL: it also returns an error in case of
+// failure.
+func (r *Route) URLDebug(pairs ...string) (rv *url.URL, err os.Error) {
 	var scheme, host, path string
 	values := stringMapFromPairs(errOddURLPairs, pairs...)
 	if r.hostTemplate != nil {
 		// Set a default scheme.
 		scheme = "http"
-		host = reverseRoute(r.hostTemplate, values)
+		if host, err = reverseRoute(r.hostTemplate, values); err != nil {
+			return
+		}
 	}
 	if r.pathTemplate != nil {
-		path = reverseRoute(r.pathTemplate, values)
+		if path, err = reverseRoute(r.pathTemplate, values); err != nil {
+			return
+		}
 	}
-	return &url.URL{
+	rv = &url.URL{
 		Scheme: scheme,
 		Host:   host,
 		Path:   path,
 	}
+	return
 }
 
 // URLHost builds the host part of the URL for a route.
 //
 // The route must have a host defined.
-func (r *Route) URLHost(pairs ...string) *url.URL {
+//
+// In case of bad arguments or missing host it will return nil.
+func (r *Route) URLHost(pairs ...string) (rv *url.URL) {
+	rv, _ = r.URLHostDebug(pairs...)
+	return
+}
+
+// URLHostDebug is a debug version of URLHost: it also returns an error in
+// case of failure.
+func (r *Route) URLHostDebug(pairs ...string) (rv *url.URL, err os.Error) {
 	if r.hostTemplate == nil {
-		panic(errMissingHost)
+		err = muxError(errMissingHost)
+		return
 	}
+	var host string
 	values := stringMapFromPairs(errOddURLPairs, pairs...)
-	return &url.URL{
-		Scheme: "http",
-		Host:   reverseRoute(r.hostTemplate, values),
+	if host, err = reverseRoute(r.hostTemplate, values); err != nil {
+		return
+	} else {
+		rv = &url.URL{
+			Scheme: "http",
+			Host:   host,
+		}
 	}
+	return
 }
 
 // URLPath builds the path part of the URL for a route.
 //
 // The route must have a path defined.
-func (r *Route) URLPath(pairs ...string) *url.URL {
+//
+// In case of bad arguments or missing path it will return nil.
+func (r *Route) URLPath(pairs ...string) (rv *url.URL) {
+	rv, _ = r.URLPathDebug(pairs...)
+	return
+}
+
+// URLPathDebug is a debug version of URLPath: it also returns an error in
+// case of failure.
+func (r *Route) URLPathDebug(pairs ...string) (rv *url.URL, err os.Error) {
 	if r.pathTemplate == nil {
-		panic(errMissingPath)
+		err = muxError(errMissingPath)
+		return
 	}
+	var path string
 	values := stringMapFromPairs(errOddURLPairs, pairs...)
-	return &url.URL{
-		Path: reverseRoute(r.pathTemplate, values),
+	if path, err = reverseRoute(r.pathTemplate, values); err != nil {
+		return
+	} else {
+		rv = &url.URL{
+			Path: path,
+		}
 	}
+	return
 }
 
 // reverseRoute builds a URL part based on the route's parsed template.
-func reverseRoute(tpl *parsedTemplate, values map[string]string) string {
+func reverseRoute(tpl *parsedTemplate, values map[string]string) (rv string, err os.Error) {
 	var value string
 	var ok bool
 	urlValues := make([]interface{}, len(tpl.VarsN))
 	for k, v := range tpl.VarsN {
 		if value, ok = values[v]; !ok {
-			panic(fmt.Sprintf(errMissingRouteVar, v))
+			err = muxError(errMissingRouteVar, v)
+			return
 		}
 		urlValues[k] = value
 	}
-	url := fmt.Sprintf(tpl.Reverse, urlValues...)
-	if !tpl.Regexp.MatchString(url) {
+	rv = fmt.Sprintf(tpl.Reverse, urlValues...)
+	if !tpl.Regexp.MatchString(rv) {
 		// The URL is checked against the full regexp, instead of checking
 		// individual variables. This is faster but to provide a good error
 		// message, we check individual regexps if the URL doesn't match.
 		for k, v := range tpl.VarsN {
 			if !tpl.VarsR[k].MatchString(values[v]) {
-				panic(fmt.Sprintf(errBadRouteVar, values[v],
-								  tpl.VarsR[k].String()))
+				err = muxError(errBadRouteVar, values[v],
+							   tpl.VarsR[k].String())
+				return
 			}
 		}
 	}
-	return url
+	return
 }
 
 // Route predicates -----------------------------------------------------------
@@ -273,15 +322,12 @@ func (r *Route) HandleFunc(path string, handler func(http.ResponseWriter,
 
 // Name sets the route name, used to build URLs.
 //
-// A name must be unique for a router. It will panic if the same name was
-// registered already.
+// A name must be unique for a router. If the name was registered already
+// it will be overwritten.
 func (r *Route) Name(name string) *Route {
 	router := r.router.root()
 	if router.NamedRoutes == nil {
 		router.NamedRoutes = make(map[string]*Route)
-	}
-	if _, ok := router.NamedRoutes[name]; ok {
-		panic(fmt.Sprintf(errRouteName, name))
 	}
 	router.NamedRoutes[name] = r
 	return r
@@ -334,8 +380,12 @@ func (r *Route) Host(template string) *Route {
 	if template == "" {
 		panic(fmt.Sprintf(errEmptyHost, template))
 	}
-	r.hostTemplate = parseTemplate(template, "[^.]+", false,
-								   variableNames(r.pathTemplate))
+	tpl, err := parseTemplate(template, "[^.]+", false,
+							  variableNames(r.pathTemplate))
+	if err != nil {
+		panic(err)
+	}
+	r.hostTemplate = tpl
 	return r
 }
 
@@ -380,8 +430,12 @@ func (r *Route) Path(template string) *Route {
 	if template == "" || template[0] != '/' {
 		panic(fmt.Sprintf(errEmptyPath, template))
 	}
-	r.pathTemplate = parseTemplate(template, "[^/]+", false,
-								   variableNames(r.hostTemplate))
+	tpl, err := parseTemplate(template, "[^/]+", false,
+							  variableNames(r.hostTemplate))
+	if err != nil {
+		panic(err)
+	}
+	r.pathTemplate = tpl
 	return r
 }
 
@@ -390,8 +444,12 @@ func (r *Route) PathPrefix(template string) *Route {
 	if template == "" || template[0] != '/' {
 		panic(fmt.Sprintf(errEmptyPathPrefix, template))
 	}
-	r.pathTemplate = parseTemplate(template, "[^/]+", true,
-								   variableNames(r.pathTemplate))
+	tpl, err := parseTemplate(template, "[^/]+", true,
+							  variableNames(r.hostTemplate))
+	if err != nil {
+		panic(err)
+	}
+	r.pathTemplate = tpl
 	return r
 }
 
@@ -450,16 +508,20 @@ type parsedTemplate struct {
 // a "reverse" template to build URLs and compile regexps to validate variable
 // values used in URL building.
 func parseTemplate(template string, defaultPattern string,
-				   prefix bool, names *[]string) *parsedTemplate {
+				   prefix bool, names *[]string) (*parsedTemplate, os.Error) {
 	// TODO Previously we accepted only Python-like identifiers for variable
 	// names ([a-zA-Z_][a-zA-Z0-9_]*), but should we care at all?
-	// Currently the only restriction is that name and pattern can't be empty.
+	// Currently the only restriction is that name and pattern can't be empty,
+	// and names obviously can't contain a colon.
+	idxs, err := findAllVariableIndex(template)
+	if err != nil {
+		return nil, err
+	}
 	var raw, name, patt string
 	var end int
 	var parts []string
 	pattern := bytes.NewBufferString("^")
 	reverse := bytes.NewBufferString("")
-	idxs := findAllVariableIndex(template)
 	size := len(idxs)
 	varsN := make([]string, size/2)
 	varsR := make([]*regexp.Regexp, size/2)
@@ -476,12 +538,12 @@ func parseTemplate(template string, defaultPattern string,
 		}
 		// Name or pattern can't be empty.
 		if name == "" || patt == "" {
-			panic(fmt.Sprintf(errBadTemplatePart, template[idxs[i]:end]))
+			return nil, muxError(errBadTemplatePart, template[idxs[i]:end])
 		}
 		// Name must be unique for the route.
 		if names != nil {
 			if matchInArray(*names, name) {
-				panic(fmt.Sprintf(errVarName, name))
+				return nil, muxError(errVarName, name)
 			}
 			*names = append(*names, name)
 		}
@@ -491,7 +553,11 @@ func parseTemplate(template string, defaultPattern string,
 		fmt.Fprintf(reverse, "%s%%s", raw)
 		// 4. Append variable name and compiled pattern.
 		varsN[i/2] = name
-		varsR[i/2] = regexp.MustCompile(fmt.Sprintf("^%s$", patt))
+		if reg, err := regexp.Compile(fmt.Sprintf("^%s$", patt)); err != nil {
+			return nil, err
+		} else {
+			varsR[i/2] = reg
+		}
 	}
 	// 5. Add the remaining.
 	raw = template[end:]
@@ -500,19 +566,25 @@ func parseTemplate(template string, defaultPattern string,
 	if !prefix {
 		pattern.WriteString("$")
 	}
+
 	// Done!
-	return &parsedTemplate{
-		Regexp:  regexp.MustCompile(pattern.String()),
+	tpl := &parsedTemplate{
 		Reverse: reverse.String(),
 		VarsN:   varsN,
 		VarsR:   varsR,
 	}
+	if reg, err := regexp.Compile(pattern.String()); err != nil {
+		return nil, err
+	} else {
+		tpl.Regexp = reg
+	}
+	return tpl, nil
 }
 
 // findAllVariableIndex returns index bounds for route template variables.
 //
-// It will panic if there are unbalanced curly braces.
-func findAllVariableIndex(s string) []int {
+// It will return an error if there are unbalanced curly braces.
+func findAllVariableIndex(s string) ([]int, os.Error) {
 	var level, idx int
 	idxs := make([]int, 0)
 	for i := 0; i < len(s); i++ {
@@ -525,14 +597,14 @@ func findAllVariableIndex(s string) []int {
 			if level--; level == 0 {
 				idxs = append(idxs, idx, i+1)
 			} else if level < 0 {
-				panic(fmt.Sprintf(errUnbalancedBraces, s))
+				return nil, muxError(errUnbalancedBraces, s)
 			}
 		}
 	}
 	if level != 0 {
-		panic(fmt.Sprintf(errUnbalancedBraces, s))
+		return nil, muxError(errUnbalancedBraces, s)
 	}
-	return idxs
+	return idxs, nil
 }
 
 // ----------------------------------------------------------------------------

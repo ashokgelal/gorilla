@@ -5,7 +5,9 @@
 package mux
 
 import (
+	"fmt"
 	"http"
+	"os"
 	"path"
 	"gorilla.googlecode.com/hg/gorilla/context"
 )
@@ -251,6 +253,11 @@ func (r *Router) Schemes(schemes ...string) *Route {
 // ----------------------------------------------------------------------------
 // Helpers
 // ----------------------------------------------------------------------------
+
+// muxError returns a formatted error.
+func muxError(msg string, vars ...interface{}) os.Error {
+	return os.NewError(fmt.Sprintf(msg, vars...))
+}
 
 // cleanPath returns the canonical path for p, eliminating . and .. elements.
 //
