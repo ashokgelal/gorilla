@@ -97,16 +97,19 @@ func matchMap(toCheck map[string]string, toMatch map[string][]string,
 		if !keyExists {
 			return false
 		}
-		// Check if value exists.
-		valueExists = false
-		for _, value = range values {
-			if v == value {
-				valueExists = true
-				break
+		if v != "" {
+			// If value was defined as an empty string we only check that the
+			// key exists. Otherwise we also check if the value exists.
+			valueExists = false
+			for _, value = range values {
+				if v == value {
+					valueExists = true
+					break
+				}
 			}
-		}
-		if !valueExists {
-			return false
+			if !valueExists {
+				return false
+			}
 		}
 	}
 	return true
