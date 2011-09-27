@@ -513,7 +513,7 @@ func parseTemplate(template string, defaultPattern string,
 	// names ([a-zA-Z_][a-zA-Z0-9_]*), but should we care at all?
 	// Currently the only restriction is that name and pattern can't be empty,
 	// and names obviously can't contain a colon.
-	idxs, err := findAllVariableIndex(template)
+	idxs, err := getBraceIndices(template)
 	if err != nil {
 		return nil, err
 	}
@@ -581,10 +581,10 @@ func parseTemplate(template string, defaultPattern string,
 	return tpl, nil
 }
 
-// findAllVariableIndex returns index bounds for route template variables.
+// getBraceIndices returns index bounds for route template variables.
 //
-// It will return an error if there are unbalanced curly braces.
-func findAllVariableIndex(s string) ([]int, os.Error) {
+// It will return an error if there are unbalanced braces.
+func getBraceIndices(s string) ([]int, os.Error) {
 	var level, idx int
 	idxs := make([]int, 0)
 	for i := 0; i < len(s); i++ {

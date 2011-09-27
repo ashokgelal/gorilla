@@ -1,1 +1,3 @@
-Nothing here yet. Gorilla had no releases so far.
+September 25, 2010
+------------------
+- Dropped mux.NewRouter(): new(mux.Router) will work fine.
