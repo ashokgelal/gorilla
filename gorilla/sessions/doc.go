@@ -4,21 +4,21 @@
 
 /*
 Package gorilla/sessions provides cookie sessions and infrastructure for
-custom session backends.
+custom session back-ends.
 
 The key features are:
 
 * Dead simple basic API: use it as an easy way to set signed (and optionally
 encrypted) cookies.
 
-* Advanced API for custom backends: built-in support for custom storage
+* Advanced API for custom back-ends: built-in support for custom storage
 systems; session store interface and helper functions; encoder interface
 and default implementation with customizable cryptography methods (thanks to
 Go interfaces).
 
 * Conveniences: flash messages (session values that last until read);
 built-in mechanism to rotate authentication and encryption keys;
-multiple sessions per request, even using different backends; easy way to
+multiple sessions per request, even using different back-ends; easy way to
 switch session persistency (aka "remember me") and set other attributes.
 
 The most basic example to retrieve a session is to call sessions.Session()
@@ -110,7 +110,7 @@ is also how we access multiple sessions per request.
 Session stores also have a name, and need to be registered to be available.
 The default session store uses authenticated (and optionally encrypted)
 cookies, and is registered with the name "cookie". To use a custom
-session backend, we first register it in the SessionFactory, then pass its
+session back-end, we first register it in the SessionFactory, then pass its
 name as the third argument to sessions.Session().
 
 For the sake of demonstration, let's pretend that we defined a store called
@@ -126,9 +126,9 @@ sessions.Session(), the store key:
 
 	session, err := sessions.Session(r, "mysession", "memcache")
 
-...and it will use the custom backend we defined, instead of the default
+...and it will use the custom back-end we defined, instead of the default
 "cookie" one. This means that we can use multiple sessions in the same
-request even using different backends.
+request even using different back-ends.
 
 And how to configure session expiration time, path or other cookie attributes?
 
