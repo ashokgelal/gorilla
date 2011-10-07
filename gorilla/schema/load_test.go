@@ -360,3 +360,28 @@ func TestErrors(t *testing.T) {
 		t.Errorf("Expected error for 'F02'")
 	}
 }
+
+// ----------------------------------------------------------------------------
+
+type TestStruct3 struct {
+	F01 string `schema-name:"custom-name-01"`
+	F02 []int  `schema-name:"custom-name-02"`
+}
+
+func TestCustomNames(t *testing.T) {
+	values := map[string][]string{
+		"custom-name-01": {"foo"},
+		"custom-name-02": {"42", "43", "44"},
+	}
+
+	s := &TestStruct3{}
+	_ = Load(s, values)
+
+	if s.F01 != "foo" {
+		t.Errorf("F01: %v", s.F01)
+	}
+
+	if len(s.F02) != 3 || s.F02[0] != 42 || s.F02[1] != 43 || s.F02[2] != 44 {
+		t.Errorf("F02: %v", s.F02)
+	}
+}
