@@ -14,6 +14,53 @@ import (
 )
 
 // ----------------------------------------------------------------------------
+// Type conversion
+// ----------------------------------------------------------------------------
+
+// Converts values from one type to another.
+type TypeConv func(basic reflect.Value) reflect.Value
+
+// Holds all the type converters.
+// The key is the name of the target type
+// and the value is the function that is responsible
+// for converting from the basic type
+// to the dynamic type
+var conversionMap = make(map[string]TypeConv)
+
+// AddTypeConverter adds a function to perform conversions from the basic type
+// to a more complex type.
+//
+// This can be used to define properties of types that are "alias"
+// to basic types.
+//
+//     type TString string
+//
+//     type TMyRec struct {
+// 	       Prop1 TString
+//     }
+//
+// In that case, the Load function would fail without a converter
+// since a simple "String" cannot be set on a TString property
+// So we write the function to perform de conversion
+// func ConvStringToString(v reflect.Value) reflect.Value {
+//		return reflect.ValueOf(TString(v.String()))
+// }
+// And register that function for later use
+// AddTypeConverter(reflect.TypeOf(TString("")), ConvStringToTString)
+// Then the Load function can resolve the conversion.
+func AddTypeConverter(rt reflect.Type, conv TypeConv) {
+	conversionMap[getTypeId(rt)] = conv
+}
+
+// getTypeConverter returns a converter for a value, or nil if there are none.
+func getTypeConverter(rt reflect.Type) TypeConv {
+	if conv, ok := conversionMap[getTypeId(rt)]; ok {
+		return conv
+	}
+	return nil
+}
+
+// ----------------------------------------------------------------------------
 // ValueError
 // ----------------------------------------------------------------------------
 
@@ -149,7 +196,7 @@ func loadAndValidate(i interface{}, data map[string][]string,
 //
 // - key is the unmodified data key.
 //
-// - err is the SchemaError instance to save errors.
+// - se is the SchemaError instance to save errors.
 //
 // TODO support struct values in maps and slices at some point.
 // Currently maps and slices can be of the basic types only.
@@ -206,6 +253,9 @@ func loadValue(rv reflect.Value, values, parts []string, key string,
 		if err != nil {
 			se.Add(err, key, 0)
 		} else {
+			if conv := getTypeConverter(field.Type()); conv != nil {
+				value = conv(value)
+			}
 			field.Set(value)
 		}
 	case reflect.Map:
@@ -220,17 +270,24 @@ func loadValue(rv reflect.Value, values, parts []string, key string,
 			value = reflect.New(elem)
 			se.Add(err, key, 0)
 		}
+		if conv := getTypeConverter(elem); conv != nil {
+			value = conv(value)
+		}
 		field.SetMapIndex(reflect.ValueOf(idx), value)
 	case reflect.Slice:
 		elem := field.Type().Elem()
 		ekind := elem.Kind()
 		slice := reflect.MakeSlice(field.Type(), 0, 0)
+		conv := getTypeConverter(elem);
 		for k, v := range values {
 			value, err = coerce(ekind, v)
 			if err != nil {
 				// Create a zero value to not miss an index.
 				value = reflect.New(elem)
 				se.Add(err, key, k)
+			}
+			if conv != nil {
+				value = conv(value)
 			}
 			slice = reflect.Append(slice, value)
 		}
@@ -328,7 +385,7 @@ func newStructMap() *structMap {
 func (m *structMap) getByType(t reflect.Type) (spec *structSpec) {
 	if m.specs != nil && t.Kind() == reflect.Struct {
 		m.mutex.RLock()
-		spec = m.specs[getStructId(t)]
+		spec = m.specs[getTypeId(t)]
 		m.mutex.RUnlock()
 	}
 	return
@@ -376,7 +433,7 @@ func (m *structMap) load(t reflect.Type, loaded *[]string) (spec *structSpec,
 		return nil, os.NewError("Not a struct.")
 	}
 
-	structId := getStructId(t)
+	structId := getTypeId(t)
 	spec = &structSpec{fields: make(map[string]*structFieldSpec)}
 	m.specs[structId] = spec
 	*loaded = append(*loaded, structId)
@@ -391,18 +448,18 @@ func (m *structMap) load(t reflect.Type, loaded *[]string) (spec *structSpec,
 
 		toLoad = nil
 		switch field.Type.Kind() {
-			case reflect.Map, reflect.Slice:
-				et := field.Type.Elem()
-				if et.Kind() == reflect.Struct {
-					toLoad = et
-				}
-			case reflect.Struct:
-				toLoad = field.Type
+		case reflect.Map, reflect.Slice:
+			et := field.Type.Elem()
+			if et.Kind() == reflect.Struct {
+				toLoad = et
+			}
+		case reflect.Struct:
+			toLoad = field.Type
 		}
 
 		if toLoad != nil {
 			// Load nested struct.
-			structId = getStructId(toLoad)
+			structId = getTypeId(toLoad)
 			if m.specs[structId] == nil {
 				if _, err = m.load(toLoad, loaded); err != nil {
 					return nil, err
@@ -420,7 +477,7 @@ func (m *structMap) load(t reflect.Type, loaded *[]string) (spec *structSpec,
 		for _, uniqueName := range uniqueNames {
 			if name == uniqueName {
 				return nil, os.NewError("Field names and name tags in a " +
-										"struct must be unique.")
+					"struct must be unique.")
 			}
 		}
 		uniqueNames[i] = name
@@ -476,8 +533,8 @@ type structFieldSpec struct {
 // Helpers
 // ----------------------------------------------------------------------------
 
-// getStructId returns an ID for a struct: package name + "." + struct name.
-func getStructId(t reflect.Type) string {
+// getTypeId returns an ID for a struct: package name + "." + struct name.
+func getTypeId(t reflect.Type) string {
 	return t.PkgPath() + "." + t.Name()
 }
 
@@ -490,17 +547,17 @@ func isSupportedType(t reflect.Type) bool {
 		return true
 	} else {
 		switch t.Kind() {
-			case reflect.Slice:
-				// Only []anyOfTheBaseTypes.
-				return isSupportedBasicType(t.Elem())
-			case reflect.Struct:
+		case reflect.Slice:
+			// Only []anyOfTheBaseTypes.
+			return isSupportedBasicType(t.Elem())
+		case reflect.Struct:
+			return true
+		case reflect.Map:
+			// Only map[string]anyOfTheBaseTypes.
+			stringKey := t.Key().Kind() == reflect.String
+			if stringKey &&	isSupportedBasicType(t.Elem()) {
 				return true
-			case reflect.Map:
-				// Only map[string]anyOfTheBaseTypes.
-				stringKey := t.Key().Kind() == reflect.String
-				if stringKey &&	isSupportedBasicType(t.Elem()) {
-					return true
-				}
+			}
 		}
 	}
 	return false
@@ -514,14 +571,14 @@ func isSupportedBasicType(t reflect.Type) bool {
 		t = t.Elem()
 	}
 	switch t.Kind() {
-		case reflect.Bool,
-			reflect.Float32, reflect.Float64,
-			reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32,
-			reflect.Int64,
-			reflect.String,
-			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32,
-			reflect.Uint64:
-			return true
+	case reflect.Bool,
+		reflect.Float32, reflect.Float64,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32,
+		reflect.Int64,
+		reflect.String,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32,
+		reflect.Uint64:
+		return true
 	}
 	return false
 }

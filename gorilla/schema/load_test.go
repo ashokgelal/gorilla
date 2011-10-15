@@ -5,6 +5,7 @@
 package schema
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -383,5 +384,50 @@ func TestCustomNames(t *testing.T) {
 
 	if len(s.F02) != 3 || s.F02[0] != 42 || s.F02[1] != 43 || s.F02[2] != 44 {
 		t.Errorf("F02: %v", s.F02)
+	}
+}
+
+// ----------------------------------------------------------------------------
+
+type stringType string
+
+type TestStruct4 struct {
+	F01 stringType
+	F02 []stringType
+	F03 map[string]stringType
+}
+
+func convStringType(v reflect.Value) reflect.Value {
+	return reflect.ValueOf(stringType(v.String()))
+}
+
+func TestCompositeType(t *testing.T) {
+	v := map[string][]string{
+		"F01":     {"foo"},
+		"F02":     {"foo", "bar", "baz"},
+		"F03.foo": {"bar"},
+		"F03.baz": {"ding"},
+	}
+
+	target := new(TestStruct4)
+
+	AddTypeConverter(reflect.TypeOf(stringType("")), convStringType)
+
+	err := Load(target, v)
+
+	if err != nil {
+		t.Errorf("TestComposite. Error: %v", err)
+	}
+
+	if target.F01 != stringType(v["F01"][0]) {
+		t.Errorf("Expected %v got %v", stringType(v["F01"][0]), target.F01)
+	}
+
+	if len(target.F02) != 3 || target.F02[0] != stringType(v["F02"][0]) || target.F02[1] != stringType(v["F02"][1]) || target.F02[2] != stringType(v["F02"][2]) {
+		t.Errorf("F02: %v", target.F02)
+	}
+
+	if len(target.F03) != 2 || target.F03["foo"] != stringType(v["F03.foo"][0]) || target.F03["baz"] != stringType(v["F03.baz"][0]) {
+		t.Errorf("F03: %v", target.F03)
 	}
 }
