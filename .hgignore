@@ -2,6 +2,7 @@ syntax:glob
 _obj
 _temp
 _test*
+*.6
 *.8
 *.DS_Store
 *.out
