@@ -570,7 +570,7 @@ func TestNewRegexp(t *testing.T) {
 	}
 
 	for pattern, paths := range tests {
-		p = parseTemplate(pattern, "[^/]+", false, nil)
+		p, _ = parseTemplate(pattern, "[^/]+", false, nil)
 		for path, result := range paths {
 			matches = p.Regexp.FindStringSubmatch(path)
 			if result == nil {
