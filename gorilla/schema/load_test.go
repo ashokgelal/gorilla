@@ -431,3 +431,55 @@ func TestCompositeType(t *testing.T) {
 		t.Errorf("F03: %v", target.F03)
 	}
 }
+
+// ----------------------------------------------------------------------------
+// Example from the docs.
+
+// Not supported yet.
+/*
+type Phone struct {
+	Label  string
+	Number string
+}
+
+type Person struct {
+	Name   string
+	Phones []Phone
+}
+
+func TestMultiStructField(t *testing.T) {
+	v := map[string][]string{
+		"Name":          {"Moe"},
+		"Phones.Label":  {"home", "office"},
+		"Phones.Number": {"111-111", "222-222"},
+	}
+
+	person := new(Person)
+	err := Load(person, v)
+
+	if err != nil {
+		t.Errorf("TestMultiStructField. Error: %v", err)
+	}
+
+	if person.Name != v["Name"][0] {
+		t.Errorf("Expected %v, got %v", v["Name"][0], person.Name)
+	}
+
+	if person.Phones == nil || len(person.Phones) != 2 {
+		t.Errorf("Expected 2 items in person.Phones, got %v", person.Phones)
+	} else {
+		if person.Phones[0].Label != v["Phones.Label"][0] {
+			t.Errorf("Expected %v, got %v", v["Phones.Label"][0], person.Phones[0].Label)
+		}
+		if person.Phones[1].Label != v["Phones.Label"][1] {
+			t.Errorf("Expected %v, got %v", v["Phones.Label"][1], person.Phones[1].Label)
+		}
+		if person.Phones[0].Number != v["Phones.Number"][0] {
+			t.Errorf("Expected %v, got %v", v["Phones.Number"][0], person.Phones[0].Number)
+		}
+		if person.Phones[1].Number != v["Phones.Number"][1] {
+			t.Errorf("Expected %v, got %v", v["Phones.Number"][1], person.Phones[1].Number)
+		}
+	}
+}
+*/
