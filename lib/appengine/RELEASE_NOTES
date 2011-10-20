@@ -1,0 +1,82 @@
+App Engine Go SDK - Release Notes
+
+Changes that are not backward compatible
+are marked with an exclamation mark ("!").
+
+Version 1.5.5 - October 2011
+==============================
+This release changed to api_version 3, based on Go release.r60.2.
+
+appengine/blobstore:
+  ! Add an options parameter to UploadURL for controlling maximum upload size.
+appengine/datastore:
+  ! Add an appengine.Context argument to the NewKey and NewIncompleteKey functions.
+  ! Add an options parameter to RunInTransaction to allow cross-group transactions.
+  ! Add a parent argument to the NewIncompleteKey function.
+  - Allow long slice fields. The total length of all indexed properties may now
+    be up to 5000 elements.
+appengine/log:
+  - New package.
+appengine/urlfetch:
+  - Respect fetch deadline.
+
+Version 1.5.4 - September 2011
+=================================
+appengine/blobstore:
+  - Fix time units in Stat.
+appengine/mail:
+  - Support attachments.
+Other:
+  - Report duplicate package names better in go-app-builder.
+
+Version 1.5.3 - August 2011
+==============================
+appengine:
+  - Add app identity functions: AppID, VersionID, DefaultVersionHostname.
+appengine/datastore:
+  - Fix construction of incomplete keys with parents.
+appengine/delay:
+  - Check argument types at Call time.
+  - Retry delayed functions if they return a non-nil os.Error.
+Other:
+  - Report package dependency cycles in go-app-builder.
+
+Version 1.5.2 - July 2011
+============================
+This release changed to api_version 2, based on Go release.r58.1.
+
+appengine/datastore:
+  - Add Python-compatible key encoding/decoding.
+  - Add ancestor queries.
+  - Allow GetAll to take a slice of Maps.
+  - Fix handling of incomplete keys with parents during Put and PutMulti.
+  - Make Key work with the gob and json packages.
+appengine/memcache:
+  - Add Delete and DeleteMulti functions.
+
+Version 1.5.1 - June 2011
+============================
+appengine:
+  ! Replace Context's Logf method with Debugf/Infof/Warningf/Errorf/Criticalf.
+appengine/capability:
+  - New package.
+appengine/datastore:
+  - Add batch operations.
+  - Add transactions.
+appengine/delay:
+  - New package.
+appengine/memcache:
+  - Add GetStats function.
+appengine/taskqueue:
+  - Add "Delay" field to Task.
+  - Give leased tasks a method of "PULL".
+  ! Return the fully-populated equivalent Task from Add.
+appengine/urlfetch:
+  ! Remove error types.
+Other:
+  - Set the RemoteAddr field of http.Request correctly in the dev_appserver.
+
+Version 1.5.0 - May 2011
+===========================
+Initial release. Viva il gopher!
+This introduced api_version 1, based on Go release.r57.2.
