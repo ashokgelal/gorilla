@@ -57,10 +57,9 @@ func (s *DatastoreSessionStore) Load(r *http.Request, key string,
 		// Get session from datastore and deserialize it.
 		c := appengine.NewContext(r)
 		var session Session
-		key := datastore.NewKey("Session", sessionKey(sid), 0, nil)
+		key := datastore.NewKey(c, "Session", sessionKey(sid), 0, nil)
 		if err := datastore.Get(c, key, &session); err == nil {
 			data, _ = sessions.DeserializeSessionData(session.Value)
-			info.Id = sid
 		}
 	}
 	info.Data = data
@@ -76,7 +75,8 @@ func (s *DatastoreSessionStore) Save(r *http.Request, w http.ResponseWriter,
 	}
 
 	// Save the session.
-	entityKey := datastore.NewKey("Session", sessionKey(sid), 0, nil)
+	c := appengine.NewContext(r)
+	entityKey := datastore.NewKey(c, "Session", sessionKey(sid), 0, nil)
 	_, err = datastore.Put(appengine.NewContext(r), entityKey, &Session{
 		Date:  datastore.SecondsToTime(time.Seconds()),
 		Value: serialized,
@@ -111,7 +111,6 @@ func (s *MemcacheSessionStore) Load(r *http.Request, key string,
 		c := appengine.NewContext(r)
 		if item, err := memcache.Get(c, sessionKey(sid)); err == nil {
 			data, _ = sessions.DeserializeSessionData(item.Value)
-			info.Id = sid
 		}
 	}
 	info.Data = data
@@ -150,7 +149,7 @@ func getIdAndData(info *sessions.SessionInfo) (sid string, serialized []byte, er
 		return
 	}
 	// Serialize session into []byte.
-	serialized, err = sessions.SerializeSessionData(&info.Data)
+	serialized, err = sessions.SerializeSessionData(info.Data)
 	if err != nil {
 		return
 	}

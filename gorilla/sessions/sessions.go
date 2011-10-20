@@ -572,6 +572,16 @@ func Decode(s SessionStore, key, value string) (SessionData, os.Error) {
 	return nil, ErrDecoding
 }
 
+// SerializeSessionData serializes a session value using gob.
+func SerializeSessionData(session SessionData) ([]byte, os.Error) {
+	return serialize(session)
+}
+
+// DeserializeSessionData deserializes a session value using gob.
+func DeserializeSessionData(value []byte) (data SessionData, err os.Error) {
+	return deserialize(value)
+}
+
 // ----------------------------------------------------------------------------
 // SessionEncoder
 // ----------------------------------------------------------------------------
