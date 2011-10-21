@@ -495,6 +495,17 @@ func TestUrlBuilding(t *testing.T) {
 			t.Errorf("%#v:\nexpected: %q\ngot: %q\nreverse path: %q\nreverse host: %q", v.route, v.url, url, reversePath, reverseHost)
 		}
 	}
+
+	ArticleHandler := func(w http.ResponseWriter, r *http.Request) {
+	}
+
+	HandleFunc("/articles/{category}/{id:[0-9]+}", ArticleHandler).Name("article")
+
+	url := NamedRoutes["article"].URL("category", "technology", "id", "42")
+	expected := "/articles/technology/42"
+	if url.String() != expected {
+		t.Errorf("Expected %v, got %v", expected, url.String())
+	}
 }
 
 func TestSubRouting(t *testing.T) {

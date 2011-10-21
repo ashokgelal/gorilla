@@ -260,7 +260,7 @@ func (r *Router) Schemes(schemes ...string) *Route {
 // change the default router instance.
 
 // DefaultRouter is a default Router instance for convenience.
-var DefaultRouter = new(Router)
+var DefaultRouter = &Router{NamedRoutes: make(map[string]*Route)}
 
 // NamedRoutes is the DefaultRouter's NamedRoutes field.
 var NamedRoutes = DefaultRouter.NamedRoutes
