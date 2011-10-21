@@ -24,11 +24,11 @@ func init() {
 
 	// Set secret keys for the session stores.
 	sessions.SetStoreKeys("datastore",
-						  []byte("my-secret-key"),
-						  []byte("1234567890123456"))
+		[]byte("my-secret-key"),
+		[]byte("1234567890123456"))
 	sessions.SetStoreKeys("memcache",
-						  []byte("my-secret-key"),
-						  []byte("1234567890123456"))
+		[]byte("my-secret-key"),
+		[]byte("1234567890123456"))
 }
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
