@@ -206,7 +206,7 @@ func TestEncoder(t *testing.T) {
 		decoded, err3 := e1.Decode("sid", encoded)
 		if err3 != nil {
 			t.Errorf("%v: %v", err3, encoded)
-			count++;
+			count++
 		}
 		if fmt.Sprintf("%v", decoded) != fmt.Sprintf("%v", value) {
 			t.Errorf("Expected %v, got %v.", value, decoded)
@@ -231,11 +231,11 @@ func TestLoadSaveSession(t *testing.T) {
 	var cookies []string
 
 	DefaultSessionFactory.SetStoreKeys("cookie",
-									   []byte("my-secret-key"),
-									   []byte("1234567890123456"))
+		[]byte("my-secret-key"),
+		[]byte("1234567890123456"))
 
-	sessionValues1 := map[string]interface{}{"a":"1",  "b":"2",  "c":"3"}
-	sessionValues2 := map[string]interface{}{"a":"11", "b":"22", "c":"33"}
+	sessionValues1 := map[string]interface{}{"a": "1", "b": "2", "c": "3"}
+	sessionValues2 := map[string]interface{}{"a": "11", "b": "22", "c": "33"}
 
 	// Round 1 ----------------------------------------------------------------
 	// Save an empty session.
@@ -367,8 +367,8 @@ func TestFlashes(t *testing.T) {
 	var flashes []interface{}
 
 	DefaultSessionFactory.SetStoreKeys("cookie",
-									   []byte("my-secret-key"),
-									   []byte("1234567890123456"))
+		[]byte("my-secret-key"),
+		[]byte("1234567890123456"))
 
 	// Round 1 ----------------------------------------------------------------
 	req, _ = http.NewRequest("GET", "http://localhost:8080/", nil)
@@ -448,8 +448,8 @@ func TestKeyRotation(t *testing.T) {
 	var cookies []string
 
 	DefaultSessionFactory.SetStoreKeys("cookie",
-									   []byte("my-secret-key"),
-									   []byte("1234567890123456"))
+		[]byte("my-secret-key"),
+		[]byte("1234567890123456"))
 
 	// Round 1 ----------------------------------------------------------------
 	// Set some values.
@@ -470,8 +470,8 @@ func TestKeyRotation(t *testing.T) {
 	// Round 2 ----------------------------------------------------------------
 	// Invalid keys.
 	DefaultSessionFactory.SetStoreKeys("cookie",
-									   []byte("my-other-secret-key"),
-									   []byte("1134567890123456"))
+		[]byte("my-other-secret-key"),
+		[]byte("1134567890123456"))
 
 	req, _ = http.NewRequest("GET", "http://localhost:8080/", nil)
 	req.Header.Add("Cookie", cookies[0])
@@ -487,12 +487,12 @@ func TestKeyRotation(t *testing.T) {
 	// Round 3 ----------------------------------------------------------------
 	// Put back the old keys.
 	DefaultSessionFactory.SetStoreKeys("cookie",
-									   []byte("my-other-secret-key"),
-									   []byte("1134567890123456"),
-									   []byte("my-secret-key"),
-									   []byte("1234567890123456"),
-									   []byte("my-other-secret-key"),
-									   []byte("1134567890123456"))
+		[]byte("my-other-secret-key"),
+		[]byte("1134567890123456"),
+		[]byte("my-secret-key"),
+		[]byte("1234567890123456"),
+		[]byte("my-other-secret-key"),
+		[]byte("1134567890123456"))
 
 	req, _ = http.NewRequest("GET", "http://localhost:8080/", nil)
 	req.Header.Add("Cookie", cookies[0])

@@ -18,28 +18,28 @@ import (
 
 // All error descriptions.
 const (
-	errRouteName        string = "Duplicated route name: %q."
-	errVarName          string = "Duplicated route variable name: %q."
+	errRouteName string = "Duplicated route name: %q."
+	errVarName   string = "Duplicated route variable name: %q."
 	// Template parsing.
 	errUnbalancedBraces string = "Unbalanced curly braces in route template: %q."
 	errBadTemplatePart  string = "Missing name or pattern in route template: %q."
 	// URL building.
-	errMissingRouteVar  string = "Missing route variable: %q."
-	errBadRouteVar      string = "Route variable doesn't match: got %q, expected %q."
-	errMissingHost      string = "Route doesn't have a host."
-	errMissingPath      string = "Route doesn't have a path."
+	errMissingRouteVar string = "Missing route variable: %q."
+	errBadRouteVar     string = "Route variable doesn't match: got %q, expected %q."
+	errMissingHost     string = "Route doesn't have a host."
+	errMissingPath     string = "Route doesn't have a path."
 	// Empty parameter errors.
-	errEmptyHost        string = "Host() requires a non-zero string, got %q."
-	errEmptyPath        string = "Path() requires a non-zero string that starts with a slash, got %q."
-	errEmptyPathPrefix  string = "PathPrefix() requires a non-zero string that starts with a slash, got %q."
+	errEmptyHost       string = "Host() requires a non-zero string, got %q."
+	errEmptyPath       string = "Path() requires a non-zero string that starts with a slash, got %q."
+	errEmptyPathPrefix string = "PathPrefix() requires a non-zero string that starts with a slash, got %q."
 	// Variadic errors.
-	errEmptyHeaders     string = "Headers() requires at least a pair of parameters."
-	errEmptyMethods     string = "Methods() requires at least one parameter."
-	errEmptyQueries     string = "Queries() requires at least a pair of parameters."
-	errEmptySchemes     string = "Schemes() requires at least one parameter."
-	errOddHeaders       string = "Headers() requires an even number of parameters, got %v."
-	errOddQueries       string = "Queries() requires an even number of parameters, got %v."
-	errOddURLPairs      string = "URL() requires an even number of parameters, got %v."
+	errEmptyHeaders string = "Headers() requires at least a pair of parameters."
+	errEmptyMethods string = "Methods() requires at least one parameter."
+	errEmptyQueries string = "Queries() requires at least a pair of parameters."
+	errEmptySchemes string = "Schemes() requires at least one parameter."
+	errOddHeaders   string = "Headers() requires an even number of parameters, got %v."
+	errOddQueries   string = "Queries() requires an even number of parameters, got %v."
+	errOddURLPairs  string = "URL() requires an even number of parameters, got %v."
 )
 
 // ----------------------------------------------------------------------------
@@ -86,11 +86,11 @@ func Vars(request *http.Request) RouteVars {
 // If needed, new instances can be created and registered.
 type Router struct {
 	// Routes to be matched, in order.
-	Routes      []*Route
+	Routes []*Route
 	// Routes by name, for URL building.
 	NamedRoutes map[string]*Route
 	// Reference to the root router, where named routes are stored.
-	rootRouter  *Router
+	rootRouter *Router
 	// Configurable Handler to be used when no route matches.
 	NotFoundHandler http.Handler
 }
@@ -169,7 +169,7 @@ func (r *Router) Handler(handler http.Handler) *Route {
 //
 // See also: Route.HandlerFunc().
 func (r *Router) HandlerFunc(handler func(http.ResponseWriter,
-							 *http.Request)) *Route {
+*http.Request)) *Route {
 	return r.NewRoute().HandlerFunc(handler)
 }
 
@@ -184,7 +184,7 @@ func (r *Router) Handle(path string, handler http.Handler) *Route {
 //
 // See also: Route.HandleFunc().
 func (r *Router) HandleFunc(path string, handler func(http.ResponseWriter,
-							*http.Request)) *Route {
+*http.Request)) *Route {
 	return r.NewRoute().HandleFunc(path, handler)
 }
 
@@ -302,7 +302,7 @@ func Handle(path string, handler http.Handler) *Route {
 //
 // See also: Route.HandleFunc().
 func HandleFunc(path string, handler func(http.ResponseWriter,
-				*http.Request)) *Route {
+*http.Request)) *Route {
 	return DefaultRouter.NewRoute().HandleFunc(path, handler)
 }
 
@@ -378,11 +378,11 @@ func Schemes(schemes ...string) *Route {
 // Route stores information to match a request.
 type Route struct {
 	// Reference to the router.
-	router       *Router
+	router *Router
 	// Request handler for this route.
-	handler      *http.Handler
+	handler *http.Handler
 	// List of matchers.
-	matchers     []*routeMatcher
+	matchers []*routeMatcher
 	// Special case matcher: parsed template for host matching.
 	hostTemplate *parsedTemplate
 	// Special case matcher: parsed template for path matching.
@@ -435,12 +435,12 @@ func (r *Route) Match(req *http.Request) (*Route, bool) {
 	if r.pathTemplate != nil {
 		// TODO Match the path unescaped?
 		/*
-		if path, ok := url.URLUnescape(r.URL.Path); ok {
-			// URLUnescape converts '+' into ' ' (space). Revert this.
-			path = strings.Replace(path, " ", "+", -1)
-		} else {
-			path = r.URL.Path
-		}
+			if path, ok := url.URLUnescape(r.URL.Path); ok {
+				// URLUnescape converts '+' into ' ' (space). Revert this.
+				path = strings.Replace(path, " ", "+", -1)
+			} else {
+				path = r.URL.Path
+			}
 		*/
 		pathMatches = r.pathTemplate.Regexp.FindStringSubmatch(req.URL.Path)
 		if pathMatches == nil {
@@ -643,7 +643,7 @@ func reverseRoute(tpl *parsedTemplate, values map[string]string) (rv string, err
 		for k, v := range tpl.VarsN {
 			if !tpl.VarsR[k].MatchString(values[v]) {
 				err = muxError(errBadRouteVar, values[v],
-							   tpl.VarsR[k].String())
+					tpl.VarsR[k].String())
 				return
 			}
 		}
@@ -661,7 +661,7 @@ func (r *Route) Handler(handler http.Handler) *Route {
 
 // HandlerFunc sets a handler function for the route.
 func (r *Route) HandlerFunc(handler func(http.ResponseWriter,
-							*http.Request)) *Route {
+*http.Request)) *Route {
 	return r.Handler(http.HandlerFunc(handler))
 }
 
@@ -672,7 +672,7 @@ func (r *Route) Handle(path string, handler http.Handler) *Route {
 
 // HandleFunc sets a path and handler function for the route.
 func (r *Route) HandleFunc(path string, handler func(http.ResponseWriter,
-						   *http.Request)) *Route {
+*http.Request)) *Route {
 	return r.Path(path).Handler(http.HandlerFunc(handler))
 }
 
@@ -737,7 +737,7 @@ func (r *Route) Host(template string) *Route {
 		panic(fmt.Sprintf(errEmptyHost, template))
 	}
 	tpl, err := parseTemplate(template, "[^.]+", false,
-							  variableNames(r.pathTemplate))
+		variableNames(r.pathTemplate))
 	if err != nil {
 		panic(err)
 	}
@@ -787,7 +787,7 @@ func (r *Route) Path(template string) *Route {
 		panic(fmt.Sprintf(errEmptyPath, template))
 	}
 	tpl, err := parseTemplate(template, "[^/]+", false,
-							  variableNames(r.hostTemplate))
+		variableNames(r.hostTemplate))
 	if err != nil {
 		panic(err)
 	}
@@ -801,7 +801,7 @@ func (r *Route) PathPrefix(template string) *Route {
 		panic(fmt.Sprintf(errEmptyPathPrefix, template))
 	}
 	tpl, err := parseTemplate(template, "[^/]+", true,
-							  variableNames(r.hostTemplate))
+		variableNames(r.hostTemplate))
 	if err != nil {
 		panic(err)
 	}
@@ -909,13 +909,13 @@ func (m *schemeMatcher) Match(request *http.Request) (*Route, bool) {
 // parsedTemplate stores a regexp and variables info for a route matcher.
 type parsedTemplate struct {
 	// Expanded regexp.
-	Regexp  *regexp.Regexp
+	Regexp *regexp.Regexp
 	// Reverse template.
 	Reverse string
 	// Variable names.
-	VarsN   []string
+	VarsN []string
 	// Variable regexps (validators).
-	VarsR   []*regexp.Regexp
+	VarsR []*regexp.Regexp
 }
 
 // parseTemplate parses a route template, expanding variables into regexps.
@@ -924,7 +924,7 @@ type parsedTemplate struct {
 // a "reverse" template to build URLs and compile regexps to validate variable
 // values used in URL building.
 func parseTemplate(template string, defaultPattern string,
-				   prefix bool, names *[]string) (*parsedTemplate, os.Error) {
+prefix bool, names *[]string) (*parsedTemplate, os.Error) {
 	// TODO Previously we accepted only Python-like identifiers for variable
 	// names ([a-zA-Z_][a-zA-Z0-9_]*), but should we care at all?
 	// Currently the only restriction is that name and pattern can't be empty,
@@ -1087,7 +1087,7 @@ func matchInArray(arr []string, value string) bool {
 
 // matchMap returns true if the given key/value pairs exist in a given map.
 func matchMap(toCheck map[string]string, toMatch map[string][]string,
-			  canonicalKey bool) bool {
+canonicalKey bool) bool {
 	for k, v := range toCheck {
 		// Check if key exists.
 		if canonicalKey {

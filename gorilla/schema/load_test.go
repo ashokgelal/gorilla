@@ -140,7 +140,7 @@ func TestLoad(t *testing.T) {
 		"F42.b": {"55"},
 		"F42.c": {"56"},
 		// Nested structs.
-		"F43.F01": {"foo"},
+		"F43.F01":         {"foo"},
 		"F43.F02.F02.F01": {"bar"},
 	}
 

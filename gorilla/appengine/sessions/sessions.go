@@ -46,7 +46,7 @@ type DatastoreSessionStore struct {
 
 // Load loads a session for the given key.
 func (s *DatastoreSessionStore) Load(r *http.Request, key string,
-									 info *sessions.SessionInfo) {
+info *sessions.SessionInfo) {
 	data := sessions.GetCookie(s, r, key)
 	if sidval, ok := data["sid"]; ok {
 		// Cleanup session data.
@@ -67,7 +67,7 @@ func (s *DatastoreSessionStore) Load(r *http.Request, key string,
 
 // Save saves the session in the response.
 func (s *DatastoreSessionStore) Save(r *http.Request, w http.ResponseWriter,
-									 key string, info *sessions.SessionInfo) (flag bool, err os.Error) {
+key string, info *sessions.SessionInfo) (flag bool, err os.Error) {
 	sid, serialized, error := getIdAndData(info)
 	if error != nil {
 		err = error
@@ -99,7 +99,7 @@ type MemcacheSessionStore struct {
 
 // Load loads a session for the given key.
 func (s *MemcacheSessionStore) Load(r *http.Request, key string,
-									info *sessions.SessionInfo) {
+info *sessions.SessionInfo) {
 	data := sessions.GetCookie(s, r, key)
 	if sidval, ok := data["sid"]; ok {
 		// Cleanup session data.
@@ -118,7 +118,7 @@ func (s *MemcacheSessionStore) Load(r *http.Request, key string,
 
 // Save saves the session in the response.
 func (s *MemcacheSessionStore) Save(r *http.Request, w http.ResponseWriter,
-									key string, info *sessions.SessionInfo) (flag bool, err os.Error) {
+key string, info *sessions.SessionInfo) (flag bool, err os.Error) {
 	sid, serialized, error := getIdAndData(info)
 	if error != nil {
 		err = error

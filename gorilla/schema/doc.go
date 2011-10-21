@@ -18,7 +18,7 @@ The basic usage is really simple. Given this struct:
 		"Name":  {"John"},
 		"Phone": {"999-999-999"},
 	}
-	person := &Person{}
+	person := new(Person)
 	schema.Load(person, values)
 
 This is just a simple example and it doesn't make a lot of sense to create

@@ -16,42 +16,42 @@ func TestRouteMatchers(t *testing.T) {
 
 	router := new(Router)
 	router.Host("{var1}.google.com").
-		   Path("/{var2:[a-z]+}/{var3:[0-9]+}").
-		   Queries("foo", "bar").
-		   Methods("GET").
-		   Schemes("https").
-		   Headers("x-requested-with", "XMLHttpRequest")
+		Path("/{var2:[a-z]+}/{var3:[0-9]+}").
+		Queries("foo", "bar").
+		Methods("GET").
+		Schemes("https").
+		Headers("x-requested-with", "XMLHttpRequest")
 	router.Host("www.{var4}.com").
-		   PathPrefix("/foo/{var5:[a-z]+}/{var6:[0-9]+}").
-		   Queries("baz", "ding").
-		   Methods("POST").
-		   Schemes("http").
-		   Headers("Content-Type", "application/json")
+		PathPrefix("/foo/{var5:[a-z]+}/{var6:[0-9]+}").
+		Queries("baz", "ding").
+		Methods("POST").
+		Schemes("http").
+		Headers("Content-Type", "application/json")
 
 	reset := func() {
 		// Everything match.
-		scheme  = "https"
-		host    = "www.google.com"
-		path    = "/product/42"
-		query   = "?foo=bar"
-		method  = "GET"
+		scheme = "https"
+		host = "www.google.com"
+		path = "/product/42"
+		query = "?foo=bar"
+		method = "GET"
 		headers = map[string]string{"X-Requested-With": "XMLHttpRequest"}
 		resultVars = map[bool]map[string]string{
-			true:  map[string]string{"var1":"www", "var2":"product", "var3":"42"},
+			true:  map[string]string{"var1": "www", "var2": "product", "var3": "42"},
 			false: map[string]string{},
 		}
 	}
 
 	reset2 := func() {
 		// Everything match.
-		scheme  = "http"
-		host    = "www.google.com"
-		path    = "/foo/product/42/path/that/is/ignored"
-		query   = "?baz=ding"
-		method  = "POST"
+		scheme = "http"
+		host = "www.google.com"
+		path = "/foo/product/42/path/that/is/ignored"
+		query = "?baz=ding"
+		method = "POST"
 		headers = map[string]string{"Content-Type": "application/json"}
 		resultVars = map[bool]map[string]string{
-			true:  map[string]string{"var4":"google", "var5":"product", "var6":"42"},
+			true:  map[string]string{"var4": "google", "var5": "product", "var6": "42"},
 			false: map[string]string{},
 		}
 	}

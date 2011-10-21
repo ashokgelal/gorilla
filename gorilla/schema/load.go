@@ -164,7 +164,7 @@ func Load(i interface{}, data map[string][]string) os.Error {
 
 // not public yet, but will be once filters and validators are implemented.
 func loadAndValidate(i interface{}, data map[string][]string,
-	filters map[string]string, validators map[string]string) os.Error {
+filters map[string]string, validators map[string]string) os.Error {
 	err := &SchemaError{}
 	val := reflect.ValueOf(i)
 	if val.Kind() != reflect.Ptr || val.Elem().Kind() != reflect.Struct {
@@ -201,7 +201,7 @@ func loadAndValidate(i interface{}, data map[string][]string,
 // TODO support struct values in maps and slices at some point.
 // Currently maps and slices can be of the basic types only.
 func loadValue(rv reflect.Value, values, parts []string, key string,
-	se *SchemaError) {
+se *SchemaError) {
 	spec, err := defaultStructMap.getOrLoad(rv.Type())
 	if err != nil {
 		// Struct spec could not be loaded.
@@ -278,7 +278,7 @@ func loadValue(rv reflect.Value, values, parts []string, key string,
 		elem := field.Type().Elem()
 		ekind := elem.Kind()
 		slice := reflect.MakeSlice(field.Type(), 0, 0)
-		conv := getTypeConverter(elem);
+		conv := getTypeConverter(elem)
 		for k, v := range values {
 			value, err = coerce(ekind, v)
 			if err != nil {
@@ -395,7 +395,7 @@ func (m *structMap) getByType(t reflect.Type) (spec *structSpec) {
 //
 // It returns nil if the passed type is not a struct.
 func (m *structMap) getOrLoad(t reflect.Type) (spec *structSpec,
-	err os.Error) {
+err os.Error) {
 	if spec = m.getByType(t); spec != nil {
 		return spec, nil
 	}
@@ -422,7 +422,7 @@ func (m *structMap) getOrLoad(t reflect.Type) (spec *structSpec,
 //
 // The loaded argument is the list of keys to roll back in case of error.
 func (m *structMap) load(t reflect.Type, loaded *[]string) (spec *structSpec,
-	err os.Error) {
+err os.Error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = r.(os.Error)
@@ -522,11 +522,11 @@ type structSpec struct {
 // structFieldSpec stores information from a parsed struct field.
 type structFieldSpec struct {
 	// Name defined in the field tag, or the real field name.
-	name     string
+	name string
 	// Real field name as defined in the struct.
 	realName string
 	// Tags, used to identify filters and validators.
-	tags     []string
+	tags []string
 }
 
 // ----------------------------------------------------------------------------
@@ -555,7 +555,7 @@ func isSupportedType(t reflect.Type) bool {
 		case reflect.Map:
 			// Only map[string]anyOfTheBaseTypes.
 			stringKey := t.Key().Kind() == reflect.String
-			if stringKey &&	isSupportedBasicType(t.Elem()) {
+			if stringKey && isSupportedBasicType(t.Elem()) {
 				return true
 			}
 		}

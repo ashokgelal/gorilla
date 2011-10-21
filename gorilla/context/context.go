@@ -27,7 +27,7 @@ type namespaceMap map[Namespacer]interface{}
 // Context stores values for requests.
 type Context struct {
 	lk sync.Mutex
-	m contextMap
+	m  contextMap
 }
 
 // Get returns the value for a given namespace in a given request.

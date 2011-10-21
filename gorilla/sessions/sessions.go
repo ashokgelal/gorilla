@@ -59,14 +59,14 @@ type SessionData map[string]interface{}
 //
 // Fields are a subset of http.Cookie fields.
 type SessionConfig struct {
-	Path      string
-	Domain    string
+	Path   string
+	Domain string
 	// MaxAge=0 means no 'Max-Age' attribute specified.
 	// MaxAge<0 means delete cookie now, equivalently 'Max-Age: 0'.
 	// MaxAge>0 means Max-Age attribute present and given in seconds.
-	MaxAge    int
-	Secure    bool
-	HttpOnly  bool
+	MaxAge   int
+	Secure   bool
+	HttpOnly bool
 }
 
 // SessionInfo stores internal references for a given session.
@@ -102,7 +102,7 @@ func Flashes(r *http.Request, vars ...string) ([]interface{}, os.Error) {
 // The variadic arguments are optional: (flashKey, sessionKey, storeKey).
 // If not defined or empty the default values are used.
 func AddFlash(r *http.Request, value interface{},
-			  vars ...string) (bool, os.Error) {
+vars ...string) (bool, os.Error) {
 	return DefaultSessionFactory.AddFlash(r, value, vars...)
 }
 
@@ -203,14 +203,14 @@ func (f *SessionFactory) SetStore(key string, store SessionStore) {
 // The encryption key, if set, must be either 16, 24, or 32 bytes to select
 // AES-128, AES-192, or AES-256 modes.
 func (f *SessionFactory) SetStoreKeys(key string,
-									  pairs ...[]byte) (bool, os.Error) {
+pairs ...[]byte) (bool, os.Error) {
 	store, err := f.Store(key)
 	if err != nil {
 		return false, err
 	}
 	var b cipher.Block
 	size := len(pairs)
-	encoders := make([]SessionEncoder, size / 2 + size % 2)
+	encoders := make([]SessionEncoder, size/2+size%2)
 	for i := 0; i < size; i += 2 {
 		if pairs[i] == nil || len(pairs[i]) == 0 {
 			return false, ErrMissingHashKey
@@ -241,7 +241,7 @@ func (f *SessionFactory) SetStoreKeys(key string,
 // to load a different session key or use a session store other than the
 // default one. If not defined or empty the defaults are used.
 func (f *SessionFactory) Session(r *http.Request,
-								 vars ...string) (SessionData, os.Error) {
+vars ...string) (SessionData, os.Error) {
 	return getRequestSessions(f, r).Session(vars...)
 }
 
@@ -250,7 +250,7 @@ func (f *SessionFactory) Session(r *http.Request,
 // The variadic arguments are optional: (flashKey, sessionKey, storeKey).
 // If not defined or empty the default values are used.
 func (f *SessionFactory) Flashes(r *http.Request,
-								 vars ...string) ([]interface{}, os.Error) {
+vars ...string) ([]interface{}, os.Error) {
 	key, newvars := flashKey(vars...)
 	session, err := f.Session(r, newvars...)
 	if err != nil {
@@ -269,7 +269,7 @@ func (f *SessionFactory) Flashes(r *http.Request,
 // The variadic arguments are optional: (flashKey, sessionKey, storeKey).
 // If not defined or empty the default values are used.
 func (f *SessionFactory) AddFlash(r *http.Request, value interface{},
-								  vars ...string) (bool, os.Error) {
+vars ...string) (bool, os.Error) {
 	key, newvars := flashKey(vars...)
 	session, err := f.Session(r, newvars...)
 	if err != nil {
@@ -289,13 +289,13 @@ func (f *SessionFactory) AddFlash(r *http.Request, value interface{},
 //
 // The key argument is optional; if not set it'll use the default session key.
 func (f *SessionFactory) Config(r *http.Request,
-								key ...string) (*SessionConfig, os.Error) {
+key ...string) (*SessionConfig, os.Error) {
 	return getRequestSessions(f, r).Config(key...)
 }
 
 // Save saves all sessions accessed during the request.
 func (f *SessionFactory) Save(r *http.Request,
-							  w http.ResponseWriter) []os.Error {
+w http.ResponseWriter) []os.Error {
 	return getRequestSessions(f, r).Save(w)
 }
 
@@ -345,7 +345,7 @@ var ns = new(context.Namespace)
 
 // getRequestSessions returns a sessions container for a single request.
 func getRequestSessions(f *SessionFactory,
-						r *http.Request) *requestSessions {
+r *http.Request) *requestSessions {
 	var s *requestSessions
 	rv := ns.Get(r)
 	if rv != nil {
@@ -384,7 +384,7 @@ func (s *requestSessions) Session(vars ...string) (SessionData, os.Error) {
 		s.sessions = make(map[string]SessionInfo)
 	}
 	// See if there's an existing session with the given key/store.
-	info, ok := s.sessions[sessionKey];
+	info, ok := s.sessions[sessionKey]
 	if ok {
 		if store != info.Store {
 			// Store should match.
@@ -470,13 +470,13 @@ type CookieSessionStore struct {
 
 // Load loads a session for the given key.
 func (s *CookieSessionStore) Load(r *http.Request, key string,
-								  info *SessionInfo) {
+info *SessionInfo) {
 	info.Data = GetCookie(s, r, key)
 }
 
 // Save saves the session in the response.
 func (s *CookieSessionStore) Save(r *http.Request, w http.ResponseWriter,
-								  key string, info *SessionInfo) (bool, os.Error) {
+key string, info *SessionInfo) (bool, os.Error) {
 	return SetCookie(s, w, key, info)
 }
 
@@ -522,7 +522,7 @@ func GetCookie(s SessionStore, r *http.Request, key string) SessionData {
 //
 // Custom backends will only store a session id in the cookie.
 func SetCookie(s SessionStore, w http.ResponseWriter, key string,
-			   info *SessionInfo) (bool, os.Error) {
+info *SessionInfo) (bool, os.Error) {
 	encoded, err := Encode(s, key, info.Data)
 	if err != nil {
 		return false, err
@@ -616,22 +616,22 @@ type SessionEncoder interface {
 type Encoder struct {
 	// Required, used for authentication.
 	// Set it to, e.g.: hmac.NewSHA256([]byte("very-secret-key"))
-	Hash      hash.Hash
+	Hash hash.Hash
 	// Optional, used for encryption.
 	// Set it to, e.g.: aes.NewCipher([]byte("16-length-secret-key"))
-	Block     cipher.Block
+	Block cipher.Block
 	// Optional, to restrict minimum age, in seconds, for the timestamp value.
 	// Set it to 0 for no restriction.
-	MinAge    int64
+	MinAge int64
 	// Optional, to restrict maximum age, in seconds, for the timestamp value.
 	// Set it to 0 for no restriction.
-	MaxAge    int64
+	MaxAge int64
 	// Optional, to restrict length of values to be decoded.
 	// Set it to, e.g.: 1024 (conservative) or 4096 (maximum cookie size).
 	MaxLength int
 	// For testing purposes, the function that returns the current timestamp.
 	// If not set, it will use time.UTC().Seconds().
-	TimeFunc  func() int64
+	TimeFunc func() int64
 }
 
 // Encode encodes a session value.
@@ -825,7 +825,7 @@ func decrypt(block cipher.Block, value []byte) (b []byte, err os.Error) {
 //
 // It returns the concatenation of "value|timestamp|message".
 func createHmac(h hash.Hash, key string, value []byte,
-				timestamp int64) []byte {
+timestamp int64) []byte {
 	msg := mac(h, key, value, timestamp)
 	return []byte(fmt.Sprintf("%s|%d|%s", value, timestamp, msg))
 }
@@ -834,7 +834,7 @@ func createHmac(h hash.Hash, key string, value []byte,
 //
 // The provided source bytes must be in the form "value|timestamp|message".
 func verifyHmac(h hash.Hash, key string, value []byte, timestamp, minAge,
-				maxAge int64) ([]byte, os.Error) {
+maxAge int64) ([]byte, os.Error) {
 	parts := bytes.SplitN(value, []byte("|"), 3)
 	if len(parts) != 3 {
 		return nil, ErrAuthentication
@@ -845,10 +845,10 @@ func verifyHmac(h hash.Hash, key string, value []byte, timestamp, minAge,
 	if tst == 0 {
 		return nil, ErrBadTimestamp
 	}
-	if minAge != 0 && tst > timestamp - minAge {
+	if minAge != 0 && tst > timestamp-minAge {
 		return nil, ErrNewTimestamp
 	}
-	if maxAge != 0 && tst < timestamp - maxAge {
+	if maxAge != 0 && tst < timestamp-maxAge {
 		return nil, ErrOldTimestamp
 	}
 	// There are several other operations being done by the Encoder so not
