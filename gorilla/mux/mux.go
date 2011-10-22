@@ -104,9 +104,9 @@ func (r *Router) root() *Router {
 }
 
 // Match matches registered routes against the request.
-func (r *Router) Match(request *http.Request) (rv *Route, ok bool) {
+func (r *Router) Match(request *http.Request) (match *RouteMatch, ok bool) {
 	for _, route := range r.Routes {
-		if rv, ok = route.Match(request); ok {
+		if match, ok = route.Match(request); ok {
 			return
 		}
 	}
@@ -126,8 +126,8 @@ func (r *Router) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 	var handler http.Handler
-	if route, ok := r.Match(request); ok {
-		handler = route.GetHandler()
+	if match, ok := r.Match(request); ok {
+		handler = match.Handler
 	}
 	if handler == nil {
 		if r.NotFoundHandler == nil {
@@ -380,7 +380,7 @@ type Route struct {
 	// Reference to the router.
 	router *Router
 	// Request handler for this route.
-	handler *http.Handler
+	handler http.Handler
 	// List of matchers.
 	matchers []*routeMatcher
 	// Special case matcher: parsed template for host matching.
@@ -401,11 +401,6 @@ func newRoute() *Route {
 	}
 }
 
-// GetHandler returns the handler registered in the route.
-func (r *Route) GetHandler() http.Handler {
-	return *r.handler
-}
-
 // Clone clones a route.
 func (r *Route) Clone() *Route {
 	// Fields are private and not changed once set, so we can reuse matchers
@@ -424,7 +419,7 @@ func (r *Route) Clone() *Route {
 // Match matches this route against the request.
 //
 // It sets variables from the matched route in the context, if any.
-func (r *Route) Match(req *http.Request) (*Route, bool) {
+func (r *Route) Match(req *http.Request) (*RouteMatch, bool) {
 	var hostMatches, pathMatches []string
 	if r.hostTemplate != nil {
 		hostMatches = r.hostTemplate.Regexp.FindStringSubmatch(req.URL.Host)
@@ -447,15 +442,13 @@ func (r *Route) Match(req *http.Request) (*Route, bool) {
 			return nil, false
 		}
 	}
-	route := r
+	var match *RouteMatch
 	if r.matchers != nil {
-		var ok bool
-		var rv *Route
 		for _, matcher := range r.matchers {
-			if rv, ok = (*matcher).Match(req); !ok {
+			if rv, ok := (*matcher).Match(req); !ok {
 				return nil, false
 			} else if rv != nil {
-				route = rv
+				match = rv
 				break
 			}
 		}
@@ -473,7 +466,10 @@ func (r *Route) Match(req *http.Request) (*Route, bool) {
 		}
 	}
 	ctx.Set(req, vars)
-	return route, true
+	if match == nil {
+		match = &RouteMatch{Route: r, Handler: r.handler}
+	}
+	return match, true
 }
 
 // Subrouting -----------------------------------------------------------------
@@ -655,7 +651,7 @@ func reverseRoute(tpl *parsedTemplate, values map[string]string) (rv string, err
 
 // Handler sets a handler for the route.
 func (r *Route) Handler(handler http.Handler) *Route {
-	r.handler = &handler
+	r.handler = handler
 	return r
 }
 
@@ -846,6 +842,12 @@ func (r *Route) Schemes(schemes ...string) *Route {
 // Matchers
 // ----------------------------------------------------------------------------
 
+// routeMatch is the returned result when a route matches.
+type RouteMatch struct {
+	Route   *Route
+	Handler http.Handler
+}
+
 // MatcherFunc is the type used by custom matchers.
 type MatcherFunc func(*http.Request) bool
 
@@ -854,7 +856,7 @@ type MatcherFunc func(*http.Request) bool
 // Only Router and Route actually return a route; it indicates a final match.
 // Route matchers return nil and the result from the individual match.
 type routeMatcher interface {
-	Match(*http.Request) (*Route, bool)
+	Match(*http.Request) (*RouteMatch, bool)
 }
 
 // customMatcher matches the request using a custom matcher function.
@@ -862,7 +864,7 @@ type customMatcher struct {
 	matcherFunc MatcherFunc
 }
 
-func (m *customMatcher) Match(request *http.Request) (*Route, bool) {
+func (m *customMatcher) Match(request *http.Request) (*RouteMatch, bool) {
 	return nil, m.matcherFunc(request)
 }
 
@@ -871,7 +873,7 @@ type headerMatcher struct {
 	headers map[string]string
 }
 
-func (m *headerMatcher) Match(request *http.Request) (*Route, bool) {
+func (m *headerMatcher) Match(request *http.Request) (*RouteMatch, bool) {
 	return nil, matchMap(m.headers, request.Header, true)
 }
 
@@ -880,7 +882,7 @@ type methodMatcher struct {
 	methods []string
 }
 
-func (m *methodMatcher) Match(request *http.Request) (*Route, bool) {
+func (m *methodMatcher) Match(request *http.Request) (*RouteMatch, bool) {
 	return nil, matchInArray(m.methods, request.Method)
 }
 
@@ -889,7 +891,7 @@ type queryMatcher struct {
 	queries map[string]string
 }
 
-func (m *queryMatcher) Match(request *http.Request) (*Route, bool) {
+func (m *queryMatcher) Match(request *http.Request) (*RouteMatch, bool) {
 	return nil, matchMap(m.queries, request.URL.Query(), false)
 }
 
@@ -898,7 +900,7 @@ type schemeMatcher struct {
 	schemes []string
 }
 
-func (m *schemeMatcher) Match(request *http.Request) (*Route, bool) {
+func (m *schemeMatcher) Match(request *http.Request) (*RouteMatch, bool) {
 	return nil, matchInArray(m.schemes, request.URL.Scheme)
 }
 

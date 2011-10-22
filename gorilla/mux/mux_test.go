@@ -516,10 +516,10 @@ func TestSubRouting(t *testing.T) {
 
 	url := "http://www.domain.com/products/"
 	request, _ := http.NewRequest("GET", url, nil)
-	rv, _ := router.Match(request)
+	rv, ok := router.Match(request)
 
-	if rv != route {
-		t.Errorf("Expectd same route, got %+v.", rv)
+	if !ok || rv.Route != route {
+		t.Errorf("Expectd same route, got %+v.", rv.Route)
 	}
 
 	builtUrl := router.NamedRoutes["products"].URL().String()
