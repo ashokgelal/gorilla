@@ -5,9 +5,67 @@
 package mux
 
 import (
+	"bytes"
 	"http"
+	"os"
 	"testing"
 )
+
+// ----------------------------------------------------------------------------
+// ResponseRecorder
+// ----------------------------------------------------------------------------
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// ResponseRecorder is an implementation of http.ResponseWriter that
+// records its mutations for later inspection in tests.
+type ResponseRecorder struct {
+	Code      int           // the HTTP response code from WriteHeader
+	HeaderMap http.Header   // the HTTP response headers
+	Body      *bytes.Buffer // if non-nil, the bytes.Buffer to append written data to
+	Flushed   bool
+}
+
+// NewRecorder returns an initialized ResponseRecorder.
+func NewRecorder() *ResponseRecorder {
+	return &ResponseRecorder{
+		HeaderMap: make(http.Header),
+		Body:      new(bytes.Buffer),
+	}
+}
+
+// DefaultRemoteAddr is the default remote address to return in RemoteAddr if
+// an explicit DefaultRemoteAddr isn't set on ResponseRecorder.
+const DefaultRemoteAddr = "1.2.3.4"
+
+// Header returns the response headers.
+func (rw *ResponseRecorder) Header() http.Header {
+	return rw.HeaderMap
+}
+
+// Write always succeeds and writes to rw.Body, if not nil.
+func (rw *ResponseRecorder) Write(buf []byte) (int, os.Error) {
+	if rw.Body != nil {
+		rw.Body.Write(buf)
+	}
+	if rw.Code == 0 {
+		rw.Code = http.StatusOK
+	}
+	return len(buf), nil
+}
+
+// WriteHeader sets rw.Code.
+func (rw *ResponseRecorder) WriteHeader(code int) {
+	rw.Code = code
+}
+
+// Flush sets rw.Flushed to true.
+func (rw *ResponseRecorder) Flush() {
+	rw.Flushed = true
+}
+
+// ----------------------------------------------------------------------------
 
 func TestRouteMatchers(t *testing.T) {
 	var scheme, host, path, query, method string
@@ -533,6 +591,55 @@ func TestVariableNames(t *testing.T) {
 	names := variableNames(route.hostTemplate, route.pathTemplate)
 	if len(*names) != 3 {
 		t.Errorf("Expected %v variable names in %v.", len(*names), *names)
+	}
+}
+
+func TestRedirectSlash(t *testing.T) {
+	var route *Route
+	r := new(Router)
+
+	r.RedirectSlash(false)
+	route = r.NewRoute()
+	if route.redirectSlash != false {
+		t.Errorf("Expected false redirectSlash.")
+	}
+
+	r.RedirectSlash(true)
+	route = r.NewRoute()
+	if route.redirectSlash != true {
+		t.Errorf("Expected true redirectSlash.")
+	}
+
+	route = newRoute().RedirectSlash(true).Path("/{arg1}/{arg2:[0-9]+}/")
+	request, _ := http.NewRequest("GET", "http://localhost/foo/123", nil)
+	match, _ := route.Match(request)
+	vars := Vars(request)
+	if vars["arg1"] != "foo" {
+		t.Errorf("Expected foo.")
+	}
+	if vars["arg2"] != "123" {
+		t.Errorf("Expected 123.")
+	}
+	rsp := NewRecorder()
+	match.Handler.ServeHTTP(rsp, request)
+	if rsp.HeaderMap.Get("Location") != "http://localhost/foo/123/" {
+		t.Errorf("Expected redirect header.")
+	}
+
+	route = newRoute().RedirectSlash(true).Path("/{arg1}/{arg2:[0-9]+}")
+	request, _ = http.NewRequest("GET", "http://localhost/foo/123/", nil)
+	match, _ = route.Match(request)
+	vars = Vars(request)
+	if vars["arg1"] != "foo" {
+		t.Errorf("Expected foo.")
+	}
+	if vars["arg2"] != "123" {
+		t.Errorf("Expected 123.")
+	}
+	rsp = NewRecorder()
+	match.Handler.ServeHTTP(rsp, request)
+	if rsp.HeaderMap.Get("Location") != "http://localhost/foo/123" {
+		t.Errorf("Expected redirect header.")
 	}
 }
 

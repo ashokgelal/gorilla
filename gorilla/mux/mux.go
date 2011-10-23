@@ -93,6 +93,8 @@ type Router struct {
 	rootRouter *Router
 	// Configurable Handler to be used when no route matches.
 	NotFoundHandler http.Handler
+	// See Route.redirectSlash. This defines the default flag for new routes.
+	redirectSlash bool
 }
 
 // root returns the root router, where named routes are stored.
@@ -149,11 +151,20 @@ func (r *Router) AddRoute(route *Route) *Router {
 	return r
 }
 
+// RedirectSlash defines the default RedirectSlash behavior for new routes.
+//
+// See Route.RedirectSlash.
+func (r *Router) RedirectSlash(value bool) *Router {
+	r.redirectSlash = value
+	return r
+}
+
 // Convenience route factories ------------------------------------------------
 
 // NewRoute creates an empty route and registers it in the router.
 func (r *Router) NewRoute() *Route {
 	route := newRoute()
+	route.redirectSlash = r.redirectSlash
 	r.AddRoute(route)
 	return route
 }
@@ -260,7 +271,10 @@ func (r *Router) Schemes(schemes ...string) *Route {
 // change the default router instance.
 
 // DefaultRouter is a default Router instance for convenience.
-var DefaultRouter = &Router{NamedRoutes: make(map[string]*Route)}
+var DefaultRouter = &Router{
+	NamedRoutes:   make(map[string]*Route),
+	redirectSlash: true,
+}
 
 // NamedRoutes is the DefaultRouter's NamedRoutes field.
 var NamedRoutes = DefaultRouter.NamedRoutes
@@ -387,11 +401,10 @@ type Route struct {
 	hostTemplate *parsedTemplate
 	// Special case matcher: parsed template for path matching.
 	pathTemplate *parsedTemplate
-	// TODO (maybe)
 	// Redirect access from paths not ending with slash to the slash'ed path
 	// if the Route paths ends with a slash, and vice-versa.
 	// If pattern is /path/, insert permanent redirect for /path.
-	// strictSlash  bool
+	redirectSlash bool
 }
 
 // newRoute returns a new Route instance.
@@ -413,6 +426,7 @@ func (r *Route) Clone() *Route {
 		matchers:     matchers,
 		hostTemplate: r.hostTemplate,
 		pathTemplate: r.pathTemplate,
+		redirectSlash:  r.redirectSlash,
 	}
 }
 
@@ -427,6 +441,7 @@ func (r *Route) Match(req *http.Request) (*RouteMatch, bool) {
 			return nil, false
 		}
 	}
+	var redirectURL string
 	if r.pathTemplate != nil {
 		// TODO Match the path unescaped?
 		/*
@@ -440,6 +455,19 @@ func (r *Route) Match(req *http.Request) (*RouteMatch, bool) {
 		pathMatches = r.pathTemplate.Regexp.FindStringSubmatch(req.URL.Path)
 		if pathMatches == nil {
 			return nil, false
+		} else if r.redirectSlash {
+			// Check if we should redirect.
+			p1 := strings.HasSuffix(req.URL.Path, "/")
+			p2 := strings.HasSuffix(r.pathTemplate.Template, "/")
+			if p1 != p2 {
+				ru, _ := url.Parse(req.URL.String())
+				if p1 {
+					ru.Path = ru.Path[:len(ru.Path)-1]
+				} else {
+					ru.Path = ru.Path + "/"
+				}
+				redirectURL = ru.String()
+			}
 		}
 	}
 	var match *RouteMatch
@@ -468,6 +496,9 @@ func (r *Route) Match(req *http.Request) (*RouteMatch, bool) {
 	ctx.Set(req, vars)
 	if match == nil {
 		match = &RouteMatch{Route: r, Handler: r.handler}
+	}
+	if redirectURL != "" {
+		match.Handler = http.RedirectHandler(redirectURL, 301)
 	}
 	return match, true
 }
@@ -685,6 +716,15 @@ func (r *Route) Name(name string) *Route {
 	return r
 }
 
+// RedirectSlash defines the redirectSlash behavior for this route.
+//
+// When true, if the route path is /path/, accessing /path will redirect to
+// /path/, and vice versa.
+func (r *Route) RedirectSlash(value bool) *Route {
+	r.redirectSlash = value
+	return r
+}
+
 // Route matchers -------------------------------------------------------------
 
 // addMatcher adds a matcher to the array of route matchers.
@@ -732,7 +772,9 @@ func (r *Route) Host(template string) *Route {
 	if template == "" {
 		panic(fmt.Sprintf(errEmptyHost, template))
 	}
-	tpl, err := parseTemplate(template, "[^.]+", false,
+
+	tpl := &parsedTemplate{Template: template}
+	err := parseTemplate(tpl, "[^.]+", false, false,
 		variableNames(r.pathTemplate))
 	if err != nil {
 		panic(err)
@@ -782,7 +824,8 @@ func (r *Route) Path(template string) *Route {
 	if template == "" || template[0] != '/' {
 		panic(fmt.Sprintf(errEmptyPath, template))
 	}
-	tpl, err := parseTemplate(template, "[^/]+", false,
+	tpl := &parsedTemplate{Template: template}
+	err := parseTemplate(tpl, "[^/]+", false, r.redirectSlash,
 		variableNames(r.hostTemplate))
 	if err != nil {
 		panic(err)
@@ -796,7 +839,8 @@ func (r *Route) PathPrefix(template string) *Route {
 	if template == "" || template[0] != '/' {
 		panic(fmt.Sprintf(errEmptyPathPrefix, template))
 	}
-	tpl, err := parseTemplate(template, "[^/]+", true,
+	tpl := &parsedTemplate{Template: template}
+	err := parseTemplate(tpl, "[^/]+", true, false,
 		variableNames(r.hostTemplate))
 	if err != nil {
 		panic(err)
@@ -910,14 +954,16 @@ func (m *schemeMatcher) Match(request *http.Request) (*RouteMatch, bool) {
 
 // parsedTemplate stores a regexp and variables info for a route matcher.
 type parsedTemplate struct {
+	// The unmodified template.
+	Template string
 	// Expanded regexp.
-	Regexp *regexp.Regexp
+	Regexp   *regexp.Regexp
 	// Reverse template.
-	Reverse string
+	Reverse  string
 	// Variable names.
-	VarsN []string
+	VarsN    []string
 	// Variable regexps (validators).
-	VarsR []*regexp.Regexp
+	VarsR    []*regexp.Regexp
 }
 
 // parseTemplate parses a route template, expanding variables into regexps.
@@ -925,24 +971,33 @@ type parsedTemplate struct {
 // It will extract named variables, assemble a regexp to be matched, create
 // a "reverse" template to build URLs and compile regexps to validate variable
 // values used in URL building.
-func parseTemplate(template string, defaultPattern string,
-prefix bool, names *[]string) (*parsedTemplate, os.Error) {
-	// TODO Previously we accepted only Python-like identifiers for variable
-	// names ([a-zA-Z_][a-zA-Z0-9_]*), but should we care at all?
-	// Currently the only restriction is that name and pattern can't be empty,
-	// and names obviously can't contain a colon.
+//
+// Previously we accepted only Python-like identifiers for variable
+// names ([a-zA-Z_][a-zA-Z0-9_]*), but currently the only restriction is that
+// name and pattern can't be empty, and names can't contain a colon.
+func parseTemplate(tpl *parsedTemplate, defaultPattern string, prefix bool,
+	redirectSlash bool, names *[]string) os.Error {
+	// Set a flag for redirectSlash.
+	template := tpl.Template
+	endSlash := false
+	if redirectSlash && strings.HasSuffix(template, "/") {
+		template = template[:len(template)-1]
+		endSlash = true
+	}
+
 	idxs, err := getBraceIndices(template)
 	if err != nil {
-		return nil, err
+		return err
 	}
+
 	var raw, name, patt string
 	var end int
 	var parts []string
 	pattern := bytes.NewBufferString("^")
 	reverse := bytes.NewBufferString("")
 	size := len(idxs)
-	varsN := make([]string, size/2)
-	varsR := make([]*regexp.Regexp, size/2)
+	tpl.VarsN = make([]string, size/2)
+	tpl.VarsR = make([]*regexp.Regexp, size/2)
 	for i := 0; i < size; i += 2 {
 		// 1. Set all values we are interested in.
 		raw = template[end:idxs[i]]
@@ -956,12 +1011,12 @@ prefix bool, names *[]string) (*parsedTemplate, os.Error) {
 		}
 		// Name or pattern can't be empty.
 		if name == "" || patt == "" {
-			return nil, muxError(errBadTemplatePart, template[idxs[i]:end])
+			return muxError(errBadTemplatePart, template[idxs[i]:end])
 		}
 		// Name must be unique for the route.
 		if names != nil {
 			if matchInArray(*names, name) {
-				return nil, muxError(errVarName, name)
+				return muxError(errVarName, name)
 			}
 			*names = append(*names, name)
 		}
@@ -970,33 +1025,34 @@ prefix bool, names *[]string) (*parsedTemplate, os.Error) {
 		// 3. Build the reverse template.
 		fmt.Fprintf(reverse, "%s%%s", raw)
 		// 4. Append variable name and compiled pattern.
-		varsN[i/2] = name
+		tpl.VarsN[i/2] = name
 		if reg, err := regexp.Compile(fmt.Sprintf("^%s$", patt)); err != nil {
-			return nil, err
+			return err
 		} else {
-			varsR[i/2] = reg
+			tpl.VarsR[i/2] = reg
 		}
 	}
 	// 5. Add the remaining.
 	raw = template[end:]
-	reverse.WriteString(raw)
 	pattern.WriteString(regexp.QuoteMeta(raw))
+	if redirectSlash {
+		pattern.WriteString("[/]?")
+	}
 	if !prefix {
 		pattern.WriteString("$")
 	}
-
+	reverse.WriteString(raw)
+	if endSlash {
+		reverse.WriteString("/")
+	}
 	// Done!
-	tpl := &parsedTemplate{
-		Reverse: reverse.String(),
-		VarsN:   varsN,
-		VarsR:   varsR,
+	reg, err := regexp.Compile(pattern.String())
+	if err != nil {
+		return err
 	}
-	if reg, err := regexp.Compile(pattern.String()); err != nil {
-		return nil, err
-	} else {
-		tpl.Regexp = reg
-	}
-	return tpl, nil
+	tpl.Regexp = reg
+	tpl.Reverse = reverse.String()
+	return nil
 }
 
 // getBraceIndices returns index bounds for route template variables.
