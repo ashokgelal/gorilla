@@ -37,10 +37,10 @@ The supported field types in the destination struct are:
 
 - uint variants (uint, uint8, uint16, uint32, uint64);
 
+- structs;
+
 - slices of any of the above types or maps with string keys and any of the
 above types;
-
-- structs;
 
 - types with one of the above underlying types.
 
@@ -75,14 +75,9 @@ Single values are filled using the first value for a key from the source map.
 Slices are filled using all values for a key from the source map. So to fill
 a Person with multiple Phone values, like:
 
-	type Phones struct {
-		Label  []string
-		Number []string
-	}
-
 	type Person struct {
 		Name   string
-		Phones Phones
+		Phones []Phone
 	}
 
 ...an HTML form that accepts three Phone values would look like this:

@@ -197,9 +197,6 @@ filters map[string]string, validators map[string]string) os.Error {
 // - key is the unmodified data key.
 //
 // - se is the SchemaError instance to save errors.
-//
-// TODO support struct values in maps and slices at some point.
-// Currently maps and slices can be of the basic types only.
 func loadValue(rv reflect.Value, values, parts []string, key string,
 se *SchemaError) {
 	spec, err := defaultStructMap.getOrLoad(rv.Type())
@@ -218,7 +215,7 @@ se *SchemaError) {
 	parts = parts[1:]
 	field := setIndirect(rv.FieldByName(fieldSpec.realName))
 	kind := field.Kind()
-	if (kind == reflect.Struct || kind == reflect.Map) == (len(parts) == 0) {
+	if (kind == reflect.Struct || (kind == reflect.Slice && len(parts) > 0) || kind == reflect.Map) == (len(parts) == 0) {
 		// Last part can't be a struct or map. Others must be a struct or map.
 		return
 	}
@@ -235,8 +232,19 @@ se *SchemaError) {
 	}
 
 	if len(parts) > 0 {
-		// A struct. Move to next part.
-		loadValue(field, values, parts, key, se)
+		if kind == reflect.Slice {
+			if field.IsNil() {
+				slice := reflect.MakeSlice(field.Type(), len(values), len(values))
+				field.Set(slice)
+			}
+			for i := 0; i < len(values); i++ {
+				sv := field.Index(i)
+				loadValue(sv, values[i:i+1], parts, key, se)
+			}
+		} else {
+			// A struct. Move to next part.
+			loadValue(field, values, parts, key, se)
+		}
 		return
 	}
 
@@ -429,6 +437,9 @@ err os.Error) {
 		}
 	}()
 
+	if t.Kind() == reflect.Slice {
+		t = t.Elem()
+	}
 	if t.Kind() != reflect.Struct {
 		return nil, os.NewError("Not a struct.")
 	}
@@ -548,8 +559,7 @@ func isSupportedType(t reflect.Type) bool {
 	} else {
 		switch t.Kind() {
 		case reflect.Slice:
-			// Only []anyOfTheBaseTypes.
-			return isSupportedBasicType(t.Elem())
+			return true
 		case reflect.Struct:
 			return true
 		case reflect.Map:
