@@ -566,6 +566,25 @@ func TestUrlBuilding(t *testing.T) {
 	}
 }
 
+func TestMatchedRouteName(t *testing.T) {
+  routeName := "stock"
+	router := new(Router)
+	route := router.Path("/products/").Name(routeName)
+
+	url := "http://www.domain.com/products/"
+	request, _ := http.NewRequest("GET", url, nil)
+	rv, ok := router.Match(request)
+
+	if !ok || rv.Route != route {
+		t.Errorf("Expectd same route, got %+v.", rv.Route)
+	}
+
+  retName := rv.Route.GetName()
+  if retName != routeName {
+		t.Errorf("Expectd %q, got %q.", routeName, retName)
+  }
+}
+
 func TestSubRouting(t *testing.T) {
 	// Example from docs.
 	router := new(Router)

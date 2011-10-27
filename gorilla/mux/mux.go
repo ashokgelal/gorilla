@@ -405,6 +405,8 @@ type Route struct {
 	// if the Route paths ends with a slash, and vice-versa.
 	// If pattern is /path/, insert permanent redirect for /path.
 	redirectSlash bool
+	// the name associated with this route
+	name string
 }
 
 // newRoute returns a new Route instance.
@@ -427,6 +429,7 @@ func (r *Route) Clone() *Route {
 		hostTemplate: r.hostTemplate,
 		pathTemplate: r.pathTemplate,
 		redirectSlash:  r.redirectSlash,
+		name:         r.name,
 	}
 }
 
@@ -712,8 +715,14 @@ func (r *Route) Name(name string) *Route {
 	if router.NamedRoutes == nil {
 		router.NamedRoutes = make(map[string]*Route)
 	}
+	r.name = name
 	router.NamedRoutes[name] = r
 	return r
+}
+
+// Returns the name associated with a route
+func (r *Route) GetName() string{
+  return r.name
 }
 
 // RedirectSlash defines the redirectSlash behavior for this route.
