@@ -405,7 +405,7 @@ type Route struct {
 	// if the Route paths ends with a slash, and vice-versa.
 	// If pattern is /path/, insert permanent redirect for /path.
 	redirectSlash bool
-	// the name associated with this route
+	// The name associated with this route.
 	name string
 }
 
@@ -420,16 +420,17 @@ func newRoute() *Route {
 func (r *Route) Clone() *Route {
 	// Fields are private and not changed once set, so we can reuse matchers
 	// and parsed templates. Must make a copy of the matchers array, though.
+	//
+	// The name field is not cloned.
 	matchers := make([]*routeMatcher, len(r.matchers))
 	copy(matchers, r.matchers)
 	return &Route{
-		router:       r.router,
-		handler:      r.handler,
-		matchers:     matchers,
-		hostTemplate: r.hostTemplate,
-		pathTemplate: r.pathTemplate,
-		redirectSlash:  r.redirectSlash,
-		name:         r.name,
+		router:        r.router,
+		handler:       r.handler,
+		matchers:      matchers,
+		hostTemplate:  r.hostTemplate,
+		pathTemplate:  r.pathTemplate,
+		redirectSlash: r.redirectSlash,
 	}
 }
 
@@ -720,7 +721,7 @@ func (r *Route) Name(name string) *Route {
 	return r
 }
 
-// Returns the name associated with a route
+// GetName returns the name associated with a route, if any.
 func (r *Route) GetName() string{
   return r.name
 }
