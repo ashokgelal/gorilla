@@ -441,7 +441,7 @@ type Phone struct {
 }
 
 type Person struct {
-	Name   	string
+	Name    string
 	Phones  []Phone
 	Phones2 map[string]Phone
 }
@@ -487,21 +487,21 @@ func TestMultiStructField(t *testing.T) {
 
 	// Not implemented yet.
 	/*
-	if person.Phones2 == nil || len(person.Phones2) != 2 {
-		t.Errorf("Expected 2 items in person.Phones2, got %v", person.Phones2)
-	} else {
-		if person.Phones2["Home"].Label != v["Phones2.Home.Label"][0] {
-			t.Errorf("Expected %v, got %v", v["Phones2.Home.Label"][0], person.Phones2["Home"].Label)
+		if person.Phones2 == nil || len(person.Phones2) != 2 {
+			t.Errorf("Expected 2 items in person.Phones2, got %v", person.Phones2)
+		} else {
+			if person.Phones2["Home"].Label != v["Phones2.Home.Label"][0] {
+				t.Errorf("Expected %v, got %v", v["Phones2.Home.Label"][0], person.Phones2["Home"].Label)
+			}
+			if person.Phones2["Home"].Number != v["Phones2.Home.Number"][0] {
+				t.Errorf("Expected %v, got %v", v["Phones2.Home.Number"][0], person.Phones2["Home"].Number)
+			}
+			if person.Phones2["Work"].Label != v["Phones2.Work.Label"][0] {
+				t.Errorf("Expected %v, got %v", v["Phones2.Work.Label"][0], person.Phones2["Work"].Label)
+			}
+			if person.Phones2["Work"].Number != v["Phones2.Work.Number"][0] {
+				t.Errorf("Expected %v, got %v", v["Phones2.Work.Number"][0], person.Phones2["Work"].Number)
+			}
 		}
-		if person.Phones2["Home"].Number != v["Phones2.Home.Number"][0] {
-			t.Errorf("Expected %v, got %v", v["Phones2.Home.Number"][0], person.Phones2["Home"].Number)
-		}
-		if person.Phones2["Work"].Label != v["Phones2.Work.Label"][0] {
-			t.Errorf("Expected %v, got %v", v["Phones2.Work.Label"][0], person.Phones2["Work"].Label)
-		}
-		if person.Phones2["Work"].Number != v["Phones2.Work.Number"][0] {
-			t.Errorf("Expected %v, got %v", v["Phones2.Work.Number"][0], person.Phones2["Work"].Number)
-		}
-	}
 	*/
 }

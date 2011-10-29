@@ -567,7 +567,7 @@ func TestUrlBuilding(t *testing.T) {
 }
 
 func TestMatchedRouteName(t *testing.T) {
-  routeName := "stock"
+	routeName := "stock"
 	router := new(Router)
 	route := router.Path("/products/").Name(routeName)
 
@@ -579,10 +579,10 @@ func TestMatchedRouteName(t *testing.T) {
 		t.Errorf("Expectd same route, got %+v.", rv.Route)
 	}
 
-  retName := rv.Route.GetName()
-  if retName != routeName {
+	retName := rv.Route.GetName()
+	if retName != routeName {
 		t.Errorf("Expectd %q, got %q.", routeName, retName)
-  }
+	}
 }
 
 func TestSubRouting(t *testing.T) {

@@ -722,8 +722,8 @@ func (r *Route) Name(name string) *Route {
 }
 
 // GetName returns the name associated with a route, if any.
-func (r *Route) GetName() string{
-  return r.name
+func (r *Route) GetName() string {
+	return r.name
 }
 
 // RedirectSlash defines the redirectSlash behavior for this route.
@@ -967,13 +967,13 @@ type parsedTemplate struct {
 	// The unmodified template.
 	Template string
 	// Expanded regexp.
-	Regexp   *regexp.Regexp
+	Regexp *regexp.Regexp
 	// Reverse template.
-	Reverse  string
+	Reverse string
 	// Variable names.
-	VarsN    []string
+	VarsN []string
 	// Variable regexps (validators).
-	VarsR    []*regexp.Regexp
+	VarsR []*regexp.Regexp
 }
 
 // parseTemplate parses a route template, expanding variables into regexps.
@@ -986,7 +986,7 @@ type parsedTemplate struct {
 // names ([a-zA-Z_][a-zA-Z0-9_]*), but currently the only restriction is that
 // name and pattern can't be empty, and names can't contain a colon.
 func parseTemplate(tpl *parsedTemplate, defaultPattern string, prefix bool,
-	redirectSlash bool, names *[]string) os.Error {
+redirectSlash bool, names *[]string) os.Error {
 	// Set a flag for redirectSlash.
 	template := tpl.Template
 	endSlash := false
