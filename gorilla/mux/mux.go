@@ -63,6 +63,18 @@ func Vars(request *http.Request) RouteVars {
 	return nil
 }
 
+// routeCtx is the request context that stores the currently matched route.
+var routeCtx = new(context.Namespace)
+
+// CurrentRoute returns the currently matched route, if any.
+func CurrentRoute(request *http.Request) *Route {
+	rv := routeCtx.Get(request)
+	if rv != nil {
+		return rv.(*Route)
+	}
+	return nil
+}
+
 // ----------------------------------------------------------------------------
 // Router
 // ----------------------------------------------------------------------------
@@ -497,13 +509,14 @@ func (r *Route) Match(req *http.Request) (*RouteMatch, bool) {
 			vars[v] = pathMatches[k+1]
 		}
 	}
-	ctx.Set(req, vars)
 	if match == nil {
 		match = &RouteMatch{Route: r, Handler: r.handler}
 	}
 	if redirectURL != "" {
 		match.Handler = http.RedirectHandler(redirectURL, 301)
 	}
+	ctx.Set(req, vars)
+	routeCtx.Set(req, match.Route)
 	return match, true
 }
 

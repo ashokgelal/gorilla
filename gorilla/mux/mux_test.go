@@ -132,6 +132,10 @@ func TestRouteMatchers(t *testing.T) {
 		}
 
 		if matched {
+			currentRoute := CurrentRoute(request)
+			if currentRoute == nil {
+				t.Errorf("Expected a current route.")
+			}
 			vars := Vars(request)
 			expectedVars := resultVars[shouldMatch]
 			if len(vars) != len(expectedVars) {
@@ -662,6 +666,7 @@ func TestRedirectSlash(t *testing.T) {
 	}
 }
 
+// Test for the new regexp library, still not available in stable Go.
 /*
 func TestNewRegexp(t *testing.T) {
 	var p *parsedTemplate
