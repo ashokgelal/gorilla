@@ -7,6 +7,6 @@ GOFILES=\
 	mux.go\
 
 DEPS=\
-	gorilla.googlecode.com/hg/gorilla/context\
+	../context\
 
 include ${GOROOT}/src/Make.pkg

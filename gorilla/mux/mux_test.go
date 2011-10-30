@@ -561,9 +561,10 @@ func TestUrlBuilding(t *testing.T) {
 	ArticleHandler := func(w http.ResponseWriter, r *http.Request) {
 	}
 
-	HandleFunc("/articles/{category}/{id:[0-9]+}", ArticleHandler).Name("article")
+	router := new(Router)
+	router.HandleFunc("/articles/{category}/{id:[0-9]+}", ArticleHandler).Name("article")
 
-	url := NamedRoutes["article"].URL("category", "technology", "id", "42")
+	url := router.NamedRoutes["article"].URL("category", "technology", "id", "42")
 	expected := "/articles/technology/42"
 	if url.String() != expected {
 		t.Errorf("Expected %v, got %v", expected, url.String())
