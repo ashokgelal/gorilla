@@ -84,14 +84,18 @@ func CurrentRoute(request *http.Request) *Route {
 // It implements the http.Handler interface, so it can be registered to serve
 // requests. For example, to send all incoming requests to the default router:
 //
+//     var router = new(mux.Router)
+//
 //     func main() {
-//         http.Handle("/", mux.DefaultRouter)
+//         http.Handle("/", router)
 //     }
 //
 // Or, for Google App Engine, register it in a init() function:
 //
+//     var router = new(mux.Router)
+//
 //     func init() {
-//         http.Handle("/", mux.DefaultRouter)
+//         http.Handle("/", router)
 //     }
 //
 // The DefaultRouter is a Router instance ready to register URLs and handlers.
@@ -181,21 +185,6 @@ func (r *Router) NewRoute() *Route {
 	return route
 }
 
-// Handler registers a new route and sets a handler.
-//
-// See also: Route.Handler().
-func (r *Router) Handler(handler http.Handler) *Route {
-	return r.NewRoute().Handler(handler)
-}
-
-// HandlerFunc registers a new route and sets a handler function.
-//
-// See also: Route.HandlerFunc().
-func (r *Router) HandlerFunc(handler func(http.ResponseWriter,
-*http.Request)) *Route {
-	return r.NewRoute().HandlerFunc(handler)
-}
-
 // Handle registers a new route and sets a path and handler.
 //
 // See also: Route.Handle().
@@ -209,71 +198,6 @@ func (r *Router) Handle(path string, handler http.Handler) *Route {
 func (r *Router) HandleFunc(path string, handler func(http.ResponseWriter,
 *http.Request)) *Route {
 	return r.NewRoute().HandleFunc(path, handler)
-}
-
-// Name registers a new route and sets the route name.
-//
-// See also: Route.Name().
-func (r *Router) Name(name string) *Route {
-	return r.NewRoute().Name(name)
-}
-
-// Convenience route matcher factories ----------------------------------------
-
-// Headers registers a new route and sets a headers matcher.
-//
-// See also: Route.Headers().
-func (r *Router) Headers(pairs ...string) *Route {
-	return r.NewRoute().Headers(pairs...)
-}
-
-// Host registers a new route and sets a host matcher.
-//
-// See also: Route.Host().
-func (r *Router) Host(template string) *Route {
-	return r.NewRoute().Host(template)
-}
-
-// Matcher registers a new route and sets a custom matcher function.
-//
-// See also: Route.Matcher().
-func (r *Router) Matcher(matcherFunc MatcherFunc) *Route {
-	return r.NewRoute().Matcher(matcherFunc)
-}
-
-// Methods registers a new route and sets a methods matcher.
-//
-// See also: Route.Methods().
-func (r *Router) Methods(methods ...string) *Route {
-	return r.NewRoute().Methods(methods...)
-}
-
-// Path registers a new route and sets a path matcher.
-//
-// See also: Route.Path().
-func (r *Router) Path(template string) *Route {
-	return r.NewRoute().Path(template)
-}
-
-// PathPrefix registers a new route and sets a path prefix matcher.
-//
-// See also: Route.PathPrefix().
-func (r *Router) PathPrefix(template string) *Route {
-	return r.NewRoute().PathPrefix(template)
-}
-
-// Queries registers a new route and sets a queries matcher.
-//
-// See also: Route.Queries().
-func (r *Router) Queries(pairs ...string) *Route {
-	return r.NewRoute().Queries(pairs...)
-}
-
-// Schemes registers a new route and sets a schemes matcher.
-//
-// See also: Route.Schemes().
-func (r *Router) Schemes(schemes ...string) *Route {
-	return r.NewRoute().Schemes(schemes...)
 }
 
 // ----------------------------------------------------------------------------
@@ -406,7 +330,8 @@ func (r *Route) Match(req *http.Request) (*RouteMatch, bool) {
 // This is used for subrouting: it will test the inner routes if other
 // matchers matched. For example:
 //
-//     subrouter := mux.Host("www.domain.com").NewRouter()
+//     r := new(mux.Router)
+//     subrouter := r.NewRoute().Host("www.domain.com").NewRouter()
 //     subrouter.HandleFunc("/products/", ProductsHandler)
 //     subrouter.HandleFunc("/products/{key}", ProductHandler)
 //     subrouter.HandleFunc("/articles/{category}/{id:[0-9]+}"),
@@ -430,13 +355,14 @@ func (r *Route) NewRouter() *Router {
 // It accepts a sequence of key/value pairs for the route variables. For
 // example, given this route:
 //
-//     mux.HandleFunc("/articles/{category}/{id:[0-9]+}", ArticleHandler).
-//         Name("article")
+//     r := new(mux.Router)
+//     r.HandleFunc("/articles/{category}/{id:[0-9]+}", ArticleHandler).
+//       Name("article")
 //
 // ...a URL for it can be built using:
 //
-//     url := mux.NamedRoutes["article"].URL("category", "technology",
-//                                           "id", "42")
+//     url := r.NamedRoutes["article"].URL("category", "technology",
+//                                         "id", "42")
 //
 // ...which will return an url.URL with the following path:
 //
@@ -444,14 +370,15 @@ func (r *Route) NewRouter() *Router {
 //
 // This also works for host variables:
 //
-//     mux.Host("{subdomain}.domain.com").
-//              HandleFunc("/articles/{category}/{id:[0-9]+}", ArticleHandler).
-//              Name("article")
+//     r := new(mux.Router)
+//     r.NewRoute().Host("{subdomain}.domain.com").
+//                  HandleFunc("/articles/{category}/{id:[0-9]+}", ArticleHandler).
+//                  Name("article")
 //
 //     // url.String() will be "http://news.domain.com/articles/technology/42"
-//     url := mux.NamedRoutes["article"].URL("subdomain", "news",
-//                                           "category", "technology",
-//                                           "id", "42")
+//     url := r.NamedRoutes["article"].URL("subdomain", "news",
+//                                         "category", "technology",
+//                                         "id", "42")
 //
 // All variable names defined in the route are required, and their values must
 // conform to the corresponding patterns, if any.
@@ -639,8 +566,9 @@ func (r *Route) addMatcher(m routeMatcher) *Route {
 //
 // It accepts a sequence of key/value pairs to be matched. For example:
 //
-//     mux.Headers("Content-Type", "application/json",
-//                 "X-Requested-With", "XMLHttpRequest")
+//     r := new(mux.Router)
+//     r.NewRoute().Headers("Content-Type", "application/json",
+//                          "X-Requested-With", "XMLHttpRequest")
 //
 // The above route will only match if both request header values match.
 //
@@ -664,9 +592,10 @@ func (r *Route) Headers(pairs ...string) *Route {
 //
 // For example:
 //
-//     mux.Host("www.domain.com")
-//     mux.Host("{subdomain}.domain.com")
-//     mux.Host("{subdomain:[a-z]+}.domain.com")
+//     r := new(mux.Router)
+//     r.NewRoute().Host("www.domain.com")
+//     r.NewRoute().Host("{subdomain}.domain.com")
+//     r.NewRoute().Host("{subdomain:[a-z]+}.domain.com")
 //
 // Variable names must be unique in a given route. They can be retrieved
 // calling mux.Vars(request).
@@ -715,10 +644,11 @@ func (r *Route) Methods(methods ...string) *Route {
 //
 // For example:
 //
-//     mux.Path("/products/").Handler(ProductsHandler)
-//     mux.Path("/products/{key}").Handler(ProductsHandler)
-//     mux.Path("/articles/{category}/{id:[0-9]+}").
-//             Handler(ArticleHandler)
+//     r := new(mux.Router)
+//     r.NewRoute().Path("/products/").Handler(ProductsHandler)
+//     r.NewRoute().Path("/products/{key}").Handler(ProductsHandler)
+//     r.NewRoute().Path("/articles/{category}/{id:[0-9]+}").
+//                  Handler(ArticleHandler)
 //
 // Variable names must be unique in a given route. They can be retrieved
 // calling mux.Vars(request).
@@ -755,8 +685,9 @@ func (r *Route) PathPrefix(template string) *Route {
 //
 // It accepts a sequence of key/value pairs to be matched. For example:
 //
-//     mux.Queries("foo", "bar",
-//                 "baz", "ding")
+//     r := new(mux.Router)
+//     r.NewRoute().Queries("foo", "bar",
+//                          "baz", "ding")
 //
 // The above route will only match if the URL contains the defined queries
 // values, e.g.: ?foo=bar&baz=ding.
