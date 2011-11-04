@@ -12,7 +12,8 @@ on Google App Engine, as it allows http transmition over non-persistent
 connections. Also, http.Request is passed as an argument to service methods,
 allowing services to retrieve the App Engine context.
 
-Usage is the same as rpc/jsonrpc. First we define a service:
+Usage is the same as rpc/jsonrpc. First we define a service with a method to
+be called remotely:
 
 	type ArithArgs struct {
 		A, B int
@@ -25,7 +26,7 @@ Usage is the same as rpc/jsonrpc. First we define a service:
 		return nil
 	}
 
-Then setup it to be served:
+Then register it to be served:
 
 	arith := new(Arith)
 	s := new(jsonrpc.Server)
@@ -34,5 +35,26 @@ Then setup it to be served:
 And finally setup the server as an http.Handler:
 
 	http.Handle("/rpc", server)
+
+In this example, one method will be registered and can be accessed as
+"Arith.Multiply".
+
+Only methods that satisfy these criteria will be made available for remote
+access:
+
+- The method name is exported, that is, begins with an upper case letter.
+
+- The method receiver is exported or local (defined in the package
+  registering the service).
+
+- The method has three arguments.
+
+- The first argument is *http.Request.
+
+- The second and third arguments are exported or local types.
+
+- The third argument is a pointer.
+
+- The method has return type os.Error.
 */
 package jsonrpc
