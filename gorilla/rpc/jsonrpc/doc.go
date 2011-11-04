@@ -33,6 +33,6 @@ Then setup it to be served:
 
 And finally setup the server as an http.Handler:
 
-	http.Handle("/rpc", server")
+	http.Handle("/rpc", server)
 */
 package jsonrpc
