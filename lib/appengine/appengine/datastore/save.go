@@ -6,7 +6,6 @@ package datastore
 
 import (
 	"fmt"
-	"os"
 	"reflect"
 
 	"appengine"
@@ -90,7 +89,7 @@ type nameValue struct {
 }
 
 // nvToProto converts a slice of nameValues to a newly allocated EntityProto.
-func nvToProto(defaultAppID string, key *Key, typeName string, nv []nameValue) (*pb.EntityProto, os.Error) {
+func nvToProto(defaultAppID string, key *Key, typeName string, nv []nameValue) (*pb.EntityProto, error) {
 	const errMsg = "datastore: cannot store field named %q from a %q: %s"
 	e := &pb.EntityProto{
 		Key: keyToProto(defaultAppID, key),
@@ -136,7 +135,7 @@ func nvToProto(defaultAppID string, key *Key, typeName string, nv []nameValue) (
 }
 
 // saveStruct converts an entity struct to a newly allocated EntityProto.
-func saveStruct(defaultAppID string, key *Key, sv reflect.Value) (*pb.EntityProto, os.Error) {
+func saveStruct(defaultAppID string, key *Key, sv reflect.Value) (*pb.EntityProto, error) {
 	nv := make([]nameValue, sv.NumField())
 	n, st := 0, sv.Type()
 	for i := 0; i < sv.NumField(); i++ {
@@ -151,7 +150,7 @@ func saveStruct(defaultAppID string, key *Key, sv reflect.Value) (*pb.EntityProt
 }
 
 // saveMap converts an entity Map to a newly allocated EntityProto.
-func saveMap(defaultAppID string, key *Key, m Map) (*pb.EntityProto, os.Error) {
+func saveMap(defaultAppID string, key *Key, m Map) (*pb.EntityProto, error) {
 	nv := make([]nameValue, len(m))
 	n := 0
 	for k, v := range m {

@@ -6,6 +6,7 @@ package appengine_internal
 
 import (
 	"bufio"
+	"errors"
 	"http"
 	"io"
 	"log"
@@ -64,7 +65,7 @@ func handleFilteredHTTP(w http.ResponseWriter, r *http.Request) {
 // For example: "53\n".
 
 // read reads a protocol buffer from the socketAPI socket.
-func read(r *bufio.Reader, pb interface{}) os.Error {
+func read(r *bufio.Reader, pb interface{}) error {
 	b, err := r.ReadSlice('\n')
 	if err != nil {
 		return err
@@ -74,7 +75,7 @@ func read(r *bufio.Reader, pb interface{}) os.Error {
 		return err
 	}
 	if n < 0 {
-		return os.NewError("appengine: negative message length")
+		return errors.New("appengine: negative message length")
 	}
 	b = make([]byte, n)
 	_, err = io.ReadFull(r, b)
@@ -85,7 +86,7 @@ func read(r *bufio.Reader, pb interface{}) os.Error {
 }
 
 // write writes a protocol buffer to the socketAPI socket.
-func write(w *bufio.Writer, pb interface{}) os.Error {
+func write(w *bufio.Writer, pb interface{}) error {
 	b, err := proto.Marshal(pb)
 	if err != nil {
 		return err
@@ -121,7 +122,7 @@ func initAPI(netw, addr string) {
 	apiRead, apiWrite = bufio.NewReader(c), bufio.NewWriter(c)
 }
 
-func call(service, method string, data []byte) ([]byte, os.Error) {
+func call(service, method string, data []byte) ([]byte, error) {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -156,7 +157,7 @@ func NewContext(req *http.Request) *context {
 	}
 }
 
-func (c *context) Call(service, method string, in, out interface{}, _ *CallOptions) os.Error {
+func (c *context) Call(service, method string, in, out interface{}, _ *CallOptions) error {
 	data, err := proto.Marshal(in)
 	if err != nil {
 		return err

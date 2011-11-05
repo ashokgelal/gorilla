@@ -7,8 +7,8 @@ package datastore
 import (
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"gob"
-	"os"
 	"strconv"
 	"strings"
 
@@ -161,7 +161,7 @@ func gobKeyToKey(gk *gobKey) *Key {
 	}
 }
 
-func (k *Key) GobEncode() ([]byte, os.Error) {
+func (k *Key) GobEncode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	if err := gob.NewEncoder(buf).Encode(keyToGobKey(k)); err != nil {
 		return nil, err
@@ -169,7 +169,7 @@ func (k *Key) GobEncode() ([]byte, os.Error) {
 	return buf.Bytes(), nil
 }
 
-func (k *Key) GobDecode(buf []byte) os.Error {
+func (k *Key) GobDecode(buf []byte) error {
 	gk := new(gobKey)
 	if err := gob.NewDecoder(bytes.NewBuffer(buf)).Decode(gk); err != nil {
 		return err
@@ -178,13 +178,13 @@ func (k *Key) GobDecode(buf []byte) os.Error {
 	return nil
 }
 
-func (k *Key) MarshalJSON() ([]byte, os.Error) {
+func (k *Key) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + k.Encode() + `"`), nil
 }
 
-func (k *Key) UnmarshalJSON(buf []byte) os.Error {
+func (k *Key) UnmarshalJSON(buf []byte) error {
 	if len(buf) < 2 || buf[0] != '"' || buf[len(buf)-1] != '"' {
-		return os.NewError("datastore: bad JSON key")
+		return errors.New("datastore: bad JSON key")
 	}
 	k2, err := DecodeKey(string(buf[1 : len(buf)-1]))
 	if err != nil {
@@ -210,7 +210,7 @@ func (k *Key) Encode() string {
 }
 
 // DecodeKey decodes a key from the opaque representation returned by Encode.
-func DecodeKey(encoded string) (*Key, os.Error) {
+func DecodeKey(encoded string) (*Key, error) {
 	// Re-add padding.
 	if m := len(encoded) % 4; m != 0 {
 		encoded += strings.Repeat("=", 4-m)

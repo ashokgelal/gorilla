@@ -5,12 +5,11 @@ package datastore
 
 import proto "goprotobuf.googlecode.com/hg/proto"
 import "math"
-import "os"
 
 // Reference proto, math & os imports to suppress error if they are not otherwise used.
 var _ = proto.GetString
 var _ = math.Inf
-var _ os.Error
+var _ error
 
 type Property_Meaning int32
 
@@ -709,8 +708,8 @@ type Error struct {
 	XXX_unrecognized []byte `json:",omitempty"`
 }
 
-func (this *Error) Reset()         { *this = Error{} }
-func (this *Error) String() string { return proto.CompactTextString(this) }
+func (this *Error) Reset()        { *this = Error{} }
+func (this *Error) Error() string { return proto.CompactTextString(this) }
 
 type Cost struct {
 	IndexWrites      *int32           `protobuf:"varint,1,opt,name=index_writes" json:"index_writes,omitempty"`

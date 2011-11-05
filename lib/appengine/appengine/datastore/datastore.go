@@ -5,8 +5,8 @@
 package datastore
 
 import (
+	"errors"
 	"fmt"
-	"os"
 	"reflect"
 	"time"
 
@@ -50,11 +50,11 @@ type Map map[string]interface{}
 var (
 	// ErrInvalidEntityType is returned when an invalid destination entity type
 	// is passed to Get, GetAll, GetMulti or Next.
-	ErrInvalidEntityType = os.NewError("datastore: invalid entity type")
+	ErrInvalidEntityType = errors.New("datastore: invalid entity type")
 	// ErrInvalidKey is returned when an invalid key is presented.
-	ErrInvalidKey = os.NewError("datastore: invalid key")
+	ErrInvalidKey = errors.New("datastore: invalid key")
 	// ErrNoSuchEntity is returned when no entity was found for a given key.
-	ErrNoSuchEntity = os.NewError("datastore: no such entity")
+	ErrNoSuchEntity = errors.New("datastore: no such entity")
 )
 
 // ErrFieldMismatch is returned when a field is to be loaded into a different
@@ -69,24 +69,31 @@ type ErrFieldMismatch struct {
 	Reason     string
 }
 
+// AG: Leaving as it is; Error() should be used to be able to use this struct as
+// an Error
 // String returns a string representation of the error.
 func (e *ErrFieldMismatch) String() string {
 	return fmt.Sprintf("datastore: cannot load field %q from key %q into a %q: %s",
 		e.FieldName, e.Key, e.StructType, e.Reason)
 }
+// String returns a string representation of the error.
+func (e *ErrFieldMismatch) Error() string {
+	return fmt.Sprintf("datastore: cannot load field %q from key %q into a %q: %s",
+		e.FieldName, e.Key, e.StructType, e.Reason)
+}
 
 // ErrMulti indicates that a batch operation failed on at least one element.
-type ErrMulti []os.Error
+type ErrMulti []error
 
 // String returns a string representation of the error.
-func (m ErrMulti) String() string {
+func (m ErrMulti) Error() string {
 	s, n := "", 0
 	for _, e := range m {
 		if e == nil {
 			continue
 		}
 		if n == 0 {
-			s = e.String()
+			s = e.Error()
 		}
 		n++
 	}
@@ -102,7 +109,7 @@ func (m ErrMulti) String() string {
 }
 
 // protoToKey converts a Reference proto to a *Key.
-func protoToKey(r *pb.Reference) (k *Key, err os.Error) {
+func protoToKey(r *pb.Reference) (k *Key, err error) {
 	appID := proto.GetString(r.App)
 	for _, e := range r.Path.Element {
 		k = &Key{
@@ -162,7 +169,7 @@ func multiKeyToProto(appID string, key []*Key) []*pb.Reference {
 
 // multiValid is a batch version of Key.valid. It returns an os.Error, not a
 // []bool.
-func multiValid(key []*Key) os.Error {
+func multiValid(key []*Key) error {
 	invalid := false
 	for _, k := range key {
 		if !k.valid() {
@@ -188,7 +195,7 @@ func multiValid(key []*Key) os.Error {
 
 // referenceValueToKey is the same as protoToKey except the input is a
 // PropertyValue_ReferenceValue instead of a Reference.
-func referenceValueToKey(r *pb.PropertyValue_ReferenceValue) (k *Key, err os.Error) {
+func referenceValueToKey(r *pb.PropertyValue_ReferenceValue) (k *Key, err error) {
 	appID := proto.GetString(r.App)
 	for _, e := range r.Pathelement {
 		k = &Key{
@@ -224,7 +231,7 @@ func keyToReferenceValue(defaultAppID string, k *Key) *pb.PropertyValue_Referenc
 }
 
 // asStructValue converts a pointer-to-struct to a reflect.Value.
-func asStructValue(x interface{}) (reflect.Value, os.Error) {
+func asStructValue(x interface{}) (reflect.Value, error) {
 	pv := reflect.ValueOf(x)
 	if pv.Kind() != reflect.Ptr || pv.Elem().Kind() != reflect.Struct {
 		return reflect.Value{}, ErrInvalidEntityType
@@ -244,7 +251,7 @@ func asStructValue(x interface{}) (reflect.Value, os.Error) {
 // type than the one it was stored from, or when a field is missing or
 // unexported in the destination struct. ErrFieldMismatch is only returned if
 // dst is a struct pointer.
-func Get(c appengine.Context, key *Key, dst interface{}) os.Error {
+func Get(c appengine.Context, key *Key, dst interface{}) error {
 	err := GetMulti(c, []*Key{key}, []interface{}{dst})
 	if errMulti, ok := err.(ErrMulti); ok {
 		return errMulti[0]
@@ -253,9 +260,9 @@ func Get(c appengine.Context, key *Key, dst interface{}) os.Error {
 }
 
 // GetMulti is a batch version of Get.
-func GetMulti(c appengine.Context, key []*Key, dst []interface{}) os.Error {
+func GetMulti(c appengine.Context, key []*Key, dst []interface{}) error {
 	if len(key) != len(dst) {
-		return os.NewError("datastore: key and dst slices have different length")
+		return errors.New("datastore: key and dst slices have different length")
 	}
 	if len(key) == 0 {
 		return nil
@@ -272,7 +279,7 @@ func GetMulti(c appengine.Context, key []*Key, dst []interface{}) os.Error {
 		return err
 	}
 	if len(key) != len(res.Entity) {
-		return os.NewError("datastore: internal error: server returned the wrong number of entities")
+		return errors.New("datastore: internal error: server returned the wrong number of entities")
 	}
 	errMulti := make(ErrMulti, len(key))
 	for i, e := range res.Entity {
@@ -304,7 +311,7 @@ func GetMulti(c appengine.Context, key []*Key, dst []interface{}) os.Error {
 // struct will be skipped.
 // If k is an incomplete key, the returned key will be a unique key
 // generated by the datastore.
-func Put(c appengine.Context, key *Key, src interface{}) (*Key, os.Error) {
+func Put(c appengine.Context, key *Key, src interface{}) (*Key, error) {
 	k, err := PutMulti(c, []*Key{key}, []interface{}{src})
 	if err != nil {
 		if errMulti, ok := err.(ErrMulti); ok {
@@ -316,9 +323,9 @@ func Put(c appengine.Context, key *Key, src interface{}) (*Key, os.Error) {
 }
 
 // PutMulti is a batch version of Put.
-func PutMulti(c appengine.Context, key []*Key, src []interface{}) ([]*Key, os.Error) {
+func PutMulti(c appengine.Context, key []*Key, src []interface{}) ([]*Key, error) {
 	if len(key) != len(src) {
-		return nil, os.NewError("datastore: key and src slices have different length")
+		return nil, errors.New("datastore: key and src slices have different length")
 	}
 	if len(key) == 0 {
 		return nil, nil
@@ -353,20 +360,20 @@ func PutMulti(c appengine.Context, key []*Key, src []interface{}) ([]*Key, os.Er
 		return nil, err
 	}
 	if len(key) != len(res.Key) {
-		return nil, os.NewError("datastore: internal error: server returned the wrong number of keys")
+		return nil, errors.New("datastore: internal error: server returned the wrong number of keys")
 	}
 	ret := make([]*Key, len(key))
 	for i := range ret {
 		ret[i], err = protoToKey(res.Key[i])
 		if err != nil || ret[i].Incomplete() {
-			return nil, os.NewError("datastore: internal error: server returned an invalid key")
+			return nil, errors.New("datastore: internal error: server returned an invalid key")
 		}
 	}
 	return ret, nil
 }
 
 // Delete deletes the entity for the given key.
-func Delete(c appengine.Context, key *Key) os.Error {
+func Delete(c appengine.Context, key *Key) error {
 	err := DeleteMulti(c, []*Key{key})
 	if errMulti, ok := err.(ErrMulti); ok {
 		return errMulti[0]
@@ -375,7 +382,7 @@ func Delete(c appengine.Context, key *Key) os.Error {
 }
 
 // DeleteMulti is a batch version of Delete.
-func DeleteMulti(c appengine.Context, key []*Key) os.Error {
+func DeleteMulti(c appengine.Context, key []*Key) error {
 	if len(key) == 0 {
 		return nil
 	}

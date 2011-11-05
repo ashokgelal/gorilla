@@ -12,7 +12,6 @@ var router = new(mux.Router)
 
 func init() {
 
-
 	// Register a couple of routes.
 	router.HandleFunc("/", homeHandler).Name("home")
 	router.HandleFunc("/{salutation}/{name}", helloHandler).Name("hello")

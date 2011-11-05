@@ -5,8 +5,8 @@
 package logviewer
 
 import (
+	"errors"
 	"http"
-	"os"
 	"strconv"
 	"strings"
 	"template"
@@ -53,11 +53,11 @@ func usec(usec int64) string {
 
 // levelInitial converts an integer application log level to a one-letter
 // string representing the level (e.g., "D" for Debug, "E" for Error).
-func levelInitial(l int) (string, os.Error) {
+func levelInitial(l int) (string, error) {
 	if l < len(appLevels) {
 		return appLevels[l].Name[:1], nil
 	}
-	return "", os.NewError("Out of range application log level")
+	return "", errors.New("Out of range application log level")
 }
 
 // query implements a basic HTML form to examine logs and format the output
@@ -97,7 +97,7 @@ func query(w http.ResponseWriter, r *http.Request) {
 		Version   string
 		Level     int
 		Count     int
-		Error     os.Error
+		Error     error
 		Logs      []*log.Record
 	}{
 		AppLevels: appLevels, // We'll build the form from appLevels as well.

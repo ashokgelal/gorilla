@@ -6,12 +6,12 @@
 package jsonrpc
 
 import (
+	"errors"
 	"fmt"
 	"http"
 	"io/ioutil"
 	"json"
 	"log"
-	"os"
 	"strings"
 	"sync"
 	"unicode"
@@ -25,7 +25,7 @@ import (
 
 // Precompute the reflect type for os.Error.  Can't use os.Error directly
 // because Typeof takes an empty interface value.  This is annoying.
-var unusedError *os.Error
+var unusedError *error
 var typeOfOsError = reflect.TypeOf(unusedError).Elem()
 
 // Same as above, this time for http.Request.
@@ -40,11 +40,11 @@ type methodType struct {
 
 type service struct {
 	// name of service
-	name   string
+	name string
 	// receiver of methods for the service
-	rcvr   reflect.Value
+	rcvr reflect.Value
 	// type of the receiver
-	typ    reflect.Type
+	typ reflect.Type
 	// registered methods
 	method map[string]*methodType
 }
@@ -60,39 +60,39 @@ type ServiceMap struct {
 //
 // The method name uses a dotted notation, as in "Service.Method".
 func (m *ServiceMap) Get(method string) (service *service, mtype *methodType,
-err os.Error) {
+	err error) {
 	serviceMethod := strings.Split(method, ".")
 	if len(serviceMethod) != 2 {
-		err = os.NewError("rpc: service/method request ill-formed: " + method)
+		err = errors.New("rpc: service/method request ill-formed: " + method)
 		return
 	}
 	m.mu.Lock()
 	service = m.services[serviceMethod[0]]
 	m.mu.Unlock()
 	if service == nil {
-		err = os.NewError("rpc: can't find service " + method)
+		err = errors.New("rpc: can't find service " + method)
 		return
 	}
 	mtype = service.method[serviceMethod[1]]
 	if mtype == nil {
-		err = os.NewError("rpc: can't find method " + method)
+		err = errors.New("rpc: can't find method " + method)
 		return
 	}
 	return
 }
 
 // Register registers a service in the services map.
-func (m *ServiceMap) Register(rcvr interface{}) os.Error {
+func (m *ServiceMap) Register(rcvr interface{}) error {
 	return m.register(rcvr, "", false)
 }
 
 // RegisterName registers a named service in the services map.
-func (m *ServiceMap) RegisterName(name string, rcvr interface{}) os.Error {
+func (m *ServiceMap) RegisterName(name string, rcvr interface{}) error {
 	return m.register(rcvr, name, true)
 }
 
 func (m *ServiceMap) register(rcvr interface{}, name string,
-useName bool) os.Error {
+	useName bool) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.services == nil {
@@ -111,10 +111,10 @@ useName bool) os.Error {
 	if !isExported(sname) && !useName {
 		s := "rpc Register: type " + sname + " is not exported"
 		log.Print(s)
-		return os.NewError(s)
+		return errors.New(s)
 	}
 	if _, present := m.services[sname]; present {
-		return os.NewError("rpc: service already defined: " + sname)
+		return errors.New("rpc: service already defined: " + sname)
 	}
 	s.name = sname
 	s.method = make(map[string]*methodType)
@@ -174,13 +174,13 @@ useName bool) os.Error {
 			continue
 		}
 		s.method[mname] = &methodType{method: method, ArgType: argType,
-		ReplyType: replyType}
+			ReplyType: replyType}
 	}
 
 	if len(s.method) == 0 {
 		s := "rpc Register: type " + sname + " has no exported methods of suitable type"
 		log.Print(s)
-		return os.NewError(s)
+		return errors.New(s)
 	}
 	m.services[s.name] = s
 	return nil
@@ -209,28 +209,29 @@ func isExportedOrBuiltinType(t reflect.Type) bool {
 // A value sent as a placeholder for the response when the server receives
 // an invalid request.
 type InvalidRequest struct{}
+
 var invalidRequest = InvalidRequest{}
 var null = json.RawMessage([]byte("null"))
 
 type JsonRequest struct {
 	// A String containing the name of the method to be invoked.
-	Method string           `json:"method"`
+	Method string `json:"method"`
 	// An Array of objects to pass as arguments to the method.
 	Params *json.RawMessage `json:"params"`
 	// The request id. This can be of any type. It is used to match the
 	// response with the request that it is replying to.
-	Id     *json.RawMessage `json:"id"`
+	Id *json.RawMessage `json:"id"`
 }
 
 type JsonResponse struct {
 	// The Object that was returned by the invoked method. This must be null
 	// in case there was an error invoking the method.
-	Result interface{}      `json:"result"`
+	Result interface{} `json:"result"`
 	// An Error object if there was an error invoking the method. It must be
 	// null if there was no error.
-	Error  interface{}      `json:"error"`
+	Error interface{} `json:"error"`
 	// This must be the same id as the request it is responding to.
-	Id     *json.RawMessage `json:"id"`
+	Id *json.RawMessage `json:"id"`
 }
 
 // Server represents an RPC Server.
@@ -239,7 +240,7 @@ type Server struct {
 }
 
 func (server *Server) Get(method string) (service *service, mtype *methodType,
-err os.Error) {
+	err error) {
 	return server.Map.Get(method)
 }
 
@@ -250,7 +251,7 @@ err os.Error) {
 //    - first argument is a pointer to the current request
 //    - last two arguments are pointers to exported structs
 //    - one return value, of type os.Error
-func (server *Server) Register(rcvr interface{}) os.Error {
+func (server *Server) Register(rcvr interface{}) error {
 	if server.Map == nil {
 		server.Map = new(ServiceMap)
 	}
@@ -259,7 +260,7 @@ func (server *Server) Register(rcvr interface{}) os.Error {
 
 // RegisterName is like Register but uses the provided name for the type
 // instead of the receiver's concrete type.
-func (server *Server) RegisterName(name string, rcvr interface{}) os.Error {
+func (server *Server) RegisterName(name string, rcvr interface{}) error {
 	if server.Map == nil {
 		server.Map = new(ServiceMap)
 	}
@@ -273,10 +274,10 @@ const (
 )
 
 func requestError(w http.ResponseWriter, status int, message string,
-args ...interface{}) {
+	args ...interface{}) {
 	w.WriteHeader(status)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	fmt.Fprintf(w, message + "\n", args...)
+	fmt.Fprintf(w, message+"\n", args...)
 }
 
 // ServeHTTP implements an http.Handler that answers RPC requests.
@@ -308,7 +309,7 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// 3. Get service to be called.
 	service, mtype, errService := server.Get(request.Method)
 	if errService != nil {
-		requestError(w, 400, errService.String())
+		requestError(w, 400, errService.Error())
 		return
 	}
 
@@ -339,7 +340,7 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	replyv := reflect.New(mtype.ReplyType.Elem())
 	result := mtype.method.Func.Call([]reflect.Value{service.rcvr,
-									 reflect.ValueOf(r), argv, replyv})
+		reflect.ValueOf(r), argv, replyv})
 
 	// 5. Encode and set response.
 	response := new(JsonResponse)

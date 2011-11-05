@@ -6,9 +6,9 @@ package mux
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"http"
-	"os"
 	"path"
 	"regexp"
 	"strings"
@@ -196,7 +196,7 @@ func (r *Router) Handle(path string, handler http.Handler) *Route {
 //
 // See also: Route.HandleFunc().
 func (r *Router) HandleFunc(path string, handler func(http.ResponseWriter,
-*http.Request)) *Route {
+	*http.Request)) *Route {
 	return r.NewRoute().HandleFunc(path, handler)
 }
 
@@ -391,7 +391,7 @@ func (r *Route) URL(pairs ...string) (rv *url.URL) {
 
 // URLDebug is a debug version of URL: it also returns an error in case of
 // failure.
-func (r *Route) URLDebug(pairs ...string) (rv *url.URL, err os.Error) {
+func (r *Route) URLDebug(pairs ...string) (rv *url.URL, err error) {
 	var scheme, host, path string
 	values := stringMapFromPairs(errOddURLPairs, pairs...)
 	if r.hostTemplate != nil {
@@ -426,7 +426,7 @@ func (r *Route) URLHost(pairs ...string) (rv *url.URL) {
 
 // URLHostDebug is a debug version of URLHost: it also returns an error in
 // case of failure.
-func (r *Route) URLHostDebug(pairs ...string) (rv *url.URL, err os.Error) {
+func (r *Route) URLHostDebug(pairs ...string) (rv *url.URL, err error) {
 	if r.hostTemplate == nil {
 		err = muxError(errMissingHost)
 		return
@@ -456,7 +456,7 @@ func (r *Route) URLPath(pairs ...string) (rv *url.URL) {
 
 // URLPathDebug is a debug version of URLPath: it also returns an error in
 // case of failure.
-func (r *Route) URLPathDebug(pairs ...string) (rv *url.URL, err os.Error) {
+func (r *Route) URLPathDebug(pairs ...string) (rv *url.URL, err error) {
 	if r.pathTemplate == nil {
 		err = muxError(errMissingPath)
 		return
@@ -474,7 +474,7 @@ func (r *Route) URLPathDebug(pairs ...string) (rv *url.URL, err os.Error) {
 }
 
 // reverseRoute builds a URL part based on the route's parsed template.
-func reverseRoute(tpl *parsedTemplate, values map[string]string) (rv string, err os.Error) {
+func reverseRoute(tpl *parsedTemplate, values map[string]string) (rv string, err error) {
 	var value string
 	var ok bool
 	urlValues := make([]interface{}, len(tpl.VarsN))
@@ -511,7 +511,7 @@ func (r *Route) Handler(handler http.Handler) *Route {
 
 // HandlerFunc sets a handler function for the route.
 func (r *Route) HandlerFunc(handler func(http.ResponseWriter,
-*http.Request)) *Route {
+	*http.Request)) *Route {
 	return r.Handler(http.HandlerFunc(handler))
 }
 
@@ -522,7 +522,7 @@ func (r *Route) Handle(path string, handler http.Handler) *Route {
 
 // HandleFunc sets a path and handler function for the route.
 func (r *Route) HandleFunc(path string, handler func(http.ResponseWriter,
-*http.Request)) *Route {
+	*http.Request)) *Route {
 	return r.Path(path).Handler(http.HandlerFunc(handler))
 }
 
@@ -809,7 +809,7 @@ type parsedTemplate struct {
 // names ([a-zA-Z_][a-zA-Z0-9_]*), but currently the only restriction is that
 // name and pattern can't be empty, and names can't contain a colon.
 func parseTemplate(tpl *parsedTemplate, defaultPattern string, prefix bool,
-redirectSlash bool, names *[]string) os.Error {
+	redirectSlash bool, names *[]string) error {
 	// Set a flag for redirectSlash.
 	template := tpl.Template
 	endSlash := false
@@ -891,7 +891,7 @@ redirectSlash bool, names *[]string) os.Error {
 // getBraceIndices returns index bounds for route template variables.
 //
 // It will return an error if there are unbalanced braces.
-func getBraceIndices(s string) ([]int, os.Error) {
+func getBraceIndices(s string) ([]int, error) {
 	var level, idx int
 	idxs := make([]int, 0)
 	for i := 0; i < len(s); i++ {
@@ -919,8 +919,8 @@ func getBraceIndices(s string) ([]int, os.Error) {
 // ----------------------------------------------------------------------------
 
 // muxError returns a formatted error.
-func muxError(msg string, vars ...interface{}) os.Error {
-	return os.NewError(fmt.Sprintf(msg, vars...))
+func muxError(msg string, vars ...interface{}) error {
+	return errors.New(fmt.Sprintf(msg, vars...))
 }
 
 // cleanPath returns the canonical path for p, eliminating . and .. elements.
@@ -978,7 +978,7 @@ func matchInArray(arr []string, value string) bool {
 
 // matchMap returns true if the given key/value pairs exist in a given map.
 func matchMap(toCheck map[string]string, toMatch map[string][]string,
-canonicalKey bool) bool {
+	canonicalKey bool) bool {
 	for k, v := range toCheck {
 		// Check if key exists.
 		if canonicalKey {

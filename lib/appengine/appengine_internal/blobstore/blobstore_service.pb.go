@@ -5,12 +5,11 @@ package appengine
 
 import proto "goprotobuf.googlecode.com/hg/proto"
 import "math"
-import "os"
 
 // Reference proto, math & os imports to suppress error if they are not otherwise used.
 var _ = proto.GetString
 var _ = math.Inf
-var _ os.Error
+var _ error
 
 type BlobstoreServiceError_ErrorCode int32
 
@@ -58,8 +57,8 @@ type BlobstoreServiceError struct {
 	XXX_unrecognized []byte `json:",omitempty"`
 }
 
-func (this *BlobstoreServiceError) Reset()         { *this = BlobstoreServiceError{} }
-func (this *BlobstoreServiceError) String() string { return proto.CompactTextString(this) }
+func (this *BlobstoreServiceError) Reset()        { *this = BlobstoreServiceError{} }
+func (this *BlobstoreServiceError) Error() string { return proto.CompactTextString(this) }
 
 type CreateUploadURLRequest struct {
 	SuccessPath               *string `protobuf:"bytes,1,req,name=success_path" json:"success_path,omitempty"`

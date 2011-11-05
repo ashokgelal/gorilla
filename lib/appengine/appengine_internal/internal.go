@@ -77,7 +77,23 @@ type APIError struct {
 	Code    int32 // API-specific error code
 }
 
+// AG: Leaving as it is; Need Error() instead to use APIError as Error
 func (e *APIError) String() string {
+	if e.Code == 0 {
+		return e.Detail
+	}
+	s := fmt.Sprintf("API error %d", e.Code)
+	if m, ok := errorCodeMaps[e.Service]; ok {
+		s += " (" + e.Service + ": " + m[e.Code] + ")"
+	}
+	if e.Detail != "" {
+		s += ": " + e.Detail
+	}
+	return s
+}
+
+
+func (e *APIError) Error() string {
 	if e.Code == 0 {
 		return e.Detail
 	}
