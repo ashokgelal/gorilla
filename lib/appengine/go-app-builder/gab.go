@@ -17,6 +17,7 @@ Usage:
 package main
 
 import (
+	"errors"
 	"exec"
 	"flag"
 	"fmt"
@@ -70,7 +71,7 @@ func main() {
 	}
 }
 
-func build(app *App) os.Error {
+func build(app *App) error {
 	var extra []string
 	if *extraImports != "" {
 		extra = strings.Split(*extraImports, ",")
@@ -183,7 +184,7 @@ func build(app *App) os.Error {
 		return err
 	}
 	if fi.Size == 0 {
-		return os.NewError("created binary has zero size")
+		return errors.New("created binary has zero size")
 	}
 
 	return nil
@@ -194,7 +195,7 @@ func usage() {
 	flag.PrintDefaults()
 }
 
-func run(args []string, env []string) os.Error {
+func run(args []string, env []string) error {
 	if *verbose {
 		log.Printf("run %v", args)
 	}

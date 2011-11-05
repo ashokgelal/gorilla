@@ -31,13 +31,12 @@
 
 package proto
 
-
 /*
  * Types and routines for supporting protocol buffer extensions.
  */
 
 import (
-	"os"
+	"errors"
 	"reflect"
 	"strconv"
 	"unsafe"
@@ -99,20 +98,20 @@ func isExtensionField(pb extendableProto, field int32) bool {
 }
 
 // checkExtensionTypes checks that the given extension is valid for pb.
-func checkExtensionTypes(pb extendableProto, extension *ExtensionDesc) os.Error {
+func checkExtensionTypes(pb extendableProto, extension *ExtensionDesc) error {
 	// Check the extended type.
 	if a, b := reflect.TypeOf(pb), reflect.TypeOf(extension.ExtendedType); a != b {
-		return os.NewError("bad extended type; " + b.String() + " does not extend " + a.String())
+		return errors.New("bad extended type; " + b.String() + " does not extend " + a.String())
 	}
 	// Check the range.
 	if !isExtensionField(pb, extension.Field) {
-		return os.NewError("bad extension number; not in declared ranges")
+		return errors.New("bad extension number; not in declared ranges")
 	}
 	return nil
 }
 
 // encodeExtensionMap encodes any unmarshaled (unencoded) extensions in m.
-func encodeExtensionMap(m map[int32]Extension) os.Error {
+func encodeExtensionMap(m map[int32]Extension) error {
 	for k, e := range m {
 		if e.value == nil || e.desc == nil {
 			// Extension is only in its encoded form.
@@ -151,12 +150,12 @@ func HasExtension(pb extendableProto, extension *ExtensionDesc) bool {
 // ClearExtension removes the given extension from pb.
 func ClearExtension(pb extendableProto, extension *ExtensionDesc) {
 	// TODO: Check types, field numbers, etc.?
-	pb.ExtensionMap()[extension.Field] = Extension{}, false
+	delete(pb.ExtensionMap(), extension.Field)
 }
 
 // GetExtension parses and returns the given extension of pb.
 // If the extension is not present it returns (nil, nil).
-func GetExtension(pb extendableProto, extension *ExtensionDesc) (interface{}, os.Error) {
+func GetExtension(pb extendableProto, extension *ExtensionDesc) (interface{}, error) {
 	if err := checkExtensionTypes(pb, extension); err != nil {
 		return nil, err
 	}
@@ -171,7 +170,7 @@ func GetExtension(pb extendableProto, extension *ExtensionDesc) (interface{}, os
 			// This shouldn't happen. If it does, it means that
 			// GetExtension was called twice with two different
 			// descriptors with the same field number.
-			return nil, os.NewError("proto: descriptor conflict")
+			return nil, errors.New("proto: descriptor conflict")
 		}
 		return e.value, nil
 	}
@@ -190,7 +189,7 @@ func GetExtension(pb extendableProto, extension *ExtensionDesc) (interface{}, os
 }
 
 // decodeExtension decodes an extension encoded in b.
-func decodeExtension(b []byte, extension *ExtensionDesc) (interface{}, os.Error) {
+func decodeExtension(b []byte, extension *ExtensionDesc) (interface{}, error) {
 	// Discard wire type and field number varint. It isn't needed.
 	_, n := DecodeVarint(b)
 	o := NewBuffer(b[n:])
@@ -215,10 +214,10 @@ func decodeExtension(b []byte, extension *ExtensionDesc) (interface{}, os.Error)
 
 // GetExtensions returns a slice of the extensions present in pb that are also listed in es.
 // The returned slice has the same length as es; missing extensions will appear as nil elements.
-func GetExtensions(pb interface{}, es []*ExtensionDesc) (extensions []interface{}, err os.Error) {
+func GetExtensions(pb interface{}, es []*ExtensionDesc) (extensions []interface{}, err error) {
 	epb, ok := pb.(extendableProto)
 	if !ok {
-		err = os.NewError("not an extendable proto")
+		err = errors.New("not an extendable proto")
 		return
 	}
 	extensions = make([]interface{}, len(es))
@@ -236,13 +235,13 @@ func GetExtensions(pb interface{}, es []*ExtensionDesc) (extensions []interface{
 //   - AddExtension
 
 // SetExtension sets the specified extension of pb to the specified value.
-func SetExtension(pb extendableProto, extension *ExtensionDesc, value interface{}) os.Error {
+func SetExtension(pb extendableProto, extension *ExtensionDesc, value interface{}) error {
 	if err := checkExtensionTypes(pb, extension); err != nil {
 		return err
 	}
 	typ := reflect.TypeOf(extension.ExtensionType)
 	if typ != reflect.TypeOf(value) {
-		return os.NewError("bad extension value type")
+		return errors.New("bad extension value type")
 	}
 
 	pb.ExtensionMap()[extension.Field] = Extension{desc: extension, value: value}

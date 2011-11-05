@@ -5,7 +5,7 @@
 package datastore
 
 import (
-	"os"
+	"errors"
 	"reflect"
 
 	"appengine"
@@ -17,7 +17,7 @@ import (
 
 // ErrConcurrentTransaction is returned when a transaction is rolled back due
 // to a conflict with a concurrent transaction.
-var ErrConcurrentTransaction = os.NewError("datastore: concurrent transaction")
+var ErrConcurrentTransaction = errors.New("datastore: concurrent transaction")
 
 type transaction struct {
 	appengine.Context
@@ -25,7 +25,7 @@ type transaction struct {
 	finished    bool
 }
 
-var errBadTransactionField = os.NewError("datastore: Call parameter has an incompatible Transaction field")
+var errBadTransactionField = errors.New("datastore: Call parameter has an incompatible Transaction field")
 
 // setTransactionField performs the equivalent of "x.Transaction =
 // &t.transaction", where x is a pointer to a protocol buffer value whose
@@ -40,7 +40,7 @@ var errBadTransactionField = os.NewError("datastore: Call parameter has an incom
 // This reflect-based copy is necessary because the script that generates the
 // datastore and taskqueue protocol buffer definitions lead to two distinct
 // types in Go, even though they are conceptually the same.
-func (t *transaction) setTransactionField(x interface{}) (err os.Error) {
+func (t *transaction) setTransactionField(x interface{}) (err error) {
 	v := reflect.ValueOf(x)
 	if v.Kind() != reflect.Ptr || v.Type().Elem().Kind() != reflect.Struct {
 		return errBadTransactionField
@@ -76,9 +76,9 @@ func (t *transaction) setTransactionField(x interface{}) (err os.Error) {
 	return nil
 }
 
-func (t *transaction) Call(service, method string, in, out interface{}, opts *appengine_internal.CallOptions) os.Error {
+func (t *transaction) Call(service, method string, in, out interface{}, opts *appengine_internal.CallOptions) error {
 	if t.finished {
-		return os.NewError("datastore: transaction context has expired")
+		return errors.New("datastore: transaction context has expired")
 	}
 	switch service {
 	case "datastore_v3":
@@ -100,7 +100,7 @@ func (t *transaction) Call(service, method string, in, out interface{}, opts *ap
 	return t.Context.Call(service, method, in, out, opts)
 }
 
-func runOnce(c appengine.Context, f func(appengine.Context) os.Error, opts *TransactionOptions) os.Error {
+func runOnce(c appengine.Context, f func(appengine.Context) error, opts *TransactionOptions) error {
 	// Begin the transaction.
 	t := &transaction{Context: c}
 	req := &pb.BeginTransactionRequest{
@@ -164,9 +164,9 @@ func runOnce(c appengine.Context, f func(appengine.Context) os.Error, opts *Tran
 // until RunInTransaction returns nil.
 //
 // Nested transactions are not supported; c may not be a transaction context.
-func RunInTransaction(c appengine.Context, f func(tc appengine.Context) os.Error, opts *TransactionOptions) os.Error {
+func RunInTransaction(c appengine.Context, f func(tc appengine.Context) error, opts *TransactionOptions) error {
 	if _, ok := c.(*transaction); ok {
-		return os.NewError("datastore: nested transactions are not supported")
+		return errors.New("datastore: nested transactions are not supported")
 	}
 	for i := 0; i < 3; i++ {
 		if err := runOnce(c, f, opts); err != ErrConcurrentTransaction {

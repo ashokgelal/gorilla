@@ -5,11 +5,11 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"os"
 	"path"
 	"regexp"
 	"sort"
@@ -50,7 +50,7 @@ func (f *File) String() string {
 // ParseFiles parses the named files, deduces their package structure,
 // and returns the dependency DAG as an App.
 // Elements of filenames are considered relative to baseDir.
-func ParseFiles(baseDir string, filenames []string) (*App, os.Error) {
+func ParseFiles(baseDir string, filenames []string) (*App, error) {
 	app := &App{
 		Files: make([]*File, len(filenames)),
 	}
@@ -74,7 +74,7 @@ func ParseFiles(baseDir string, filenames []string) (*App, os.Error) {
 		app.Files[i] = file
 		dirname, _ := path.Split(filename)
 		if dirname == "" || dirname == "/" {
-			return nil, os.NewError("go files must be in a subdirectory of the app root")
+			return nil, errors.New("go files must be in a subdirectory of the app root")
 		}
 		dirname = dirname[:len(dirname)-1] // strip trailing slash
 		if fs := pkgFiles[dirname]; len(fs) > 0 && fs[0].PackageName != file.PackageName {
@@ -107,7 +107,7 @@ func ParseFiles(baseDir string, filenames []string) (*App, os.Error) {
 			Files:      files,
 		}
 		if p.ImportPath == "main" {
-			return nil, os.NewError("top-level main package is forbidden")
+			return nil, errors.New("top-level main package is forbidden")
 		}
 		for _, f := range files {
 			if f.HasInit {
@@ -158,7 +158,7 @@ func isInit(f *ast.FuncDecl) bool {
 }
 
 // parseFile parses a single Go source file into a *File.
-func parseFile(baseDir, filename string) (*File, os.Error) {
+func parseFile(baseDir, filename string) (*File, error) {
 	file, err := parser.ParseFile(token.NewFileSet(), path.Join(baseDir, filename), nil, 0)
 	if err != nil {
 		return nil, err
@@ -225,7 +225,7 @@ func checkImport(path string) bool {
 // topologicalSort sorts the given slice of *Package in topological order.
 // The ordering is such that X comes before Y if X is a dependency of Y.
 // A cyclic dependency graph is signalled by an error being returned.
-func topologicalSort(p []*Package) os.Error {
+func topologicalSort(p []*Package) error {
 	selected := make(map[*Package]bool, len(p))
 	for len(p) > 0 {
 		// Sweep the working list and move the packages with no

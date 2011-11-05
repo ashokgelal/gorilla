@@ -12,11 +12,11 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"gob"
 	"hash"
 	"http"
-	"os"
 	"strconv"
 	"time"
 	"gorilla.googlecode.com/hg/gorilla/context"
@@ -35,21 +35,21 @@ var (
 	DefaultStoreKey   = "cookie"
 	DefaultFlashesKey = "_flash"
 	// All errors.
-	ErrEncoding       = os.NewError("The value could not be encoded.")
-	ErrDecoding       = os.NewError("The value could not be decoded.")
-	ErrAuthentication = os.NewError("The value could not be verified using HMAC.")
-	ErrDecryption     = os.NewError("The value could not be decrypted.")
-	ErrMaxLength      = os.NewError("The value exceeds the maximum allowed length.")
-	ErrBadTimestamp   = os.NewError("Invalid timestamp.")
-	ErrNewTimestamp   = os.NewError("The value has a newer timestamp than expected.")
-	ErrOldTimestamp   = os.NewError("The value has an expired timestamp.")
-	ErrMissingHash    = os.NewError("A hash is required to create and verify values using HMAC.")
-	ErrMissingHashKey = os.NewError("Authentication secret can't be nil.")
-	ErrNoSession      = os.NewError("No session found for the given key.")
-	ErrNoFlashes      = os.NewError("No flashes found for the given key.")
-	ErrNoStore        = os.NewError("No store found for the given key.")
-	ErrStoreMismatch  = os.NewError("A session with the given key already exists using a different store.")
-	ErrBadIdLength    = os.NewError("Session id length must be greater than zero.")
+	ErrEncoding       = errors.New("The value could not be encoded.")
+	ErrDecoding       = errors.New("The value could not be decoded.")
+	ErrAuthentication = errors.New("The value could not be verified using HMAC.")
+	ErrDecryption     = errors.New("The value could not be decrypted.")
+	ErrMaxLength      = errors.New("The value exceeds the maximum allowed length.")
+	ErrBadTimestamp   = errors.New("Invalid timestamp.")
+	ErrNewTimestamp   = errors.New("The value has a newer timestamp than expected.")
+	ErrOldTimestamp   = errors.New("The value has an expired timestamp.")
+	ErrMissingHash    = errors.New("A hash is required to create and verify values using HMAC.")
+	ErrMissingHashKey = errors.New("Authentication secret can't be nil.")
+	ErrNoSession      = errors.New("No session found for the given key.")
+	ErrNoFlashes      = errors.New("No flashes found for the given key.")
+	ErrNoStore        = errors.New("No store found for the given key.")
+	ErrStoreMismatch  = errors.New("A session with the given key already exists using a different store.")
+	ErrBadIdLength    = errors.New("Session id length must be greater than zero.")
 )
 
 // The type used to store session values.
@@ -85,7 +85,7 @@ type SessionInfo struct {
 // The variadic arguments are optional: (sessionKey, storeKey). They are used
 // to load a different session key or use a session store other than the
 // default one. If not defined or empty the defaults are used.
-func Session(r *http.Request, vars ...string) (SessionData, os.Error) {
+func Session(r *http.Request, vars ...string) (SessionData, error) {
 	return DefaultSessionFactory.Session(r, vars...)
 }
 
@@ -93,7 +93,7 @@ func Session(r *http.Request, vars ...string) (SessionData, os.Error) {
 //
 // The variadic arguments are optional: (flashKey, sessionKey, storeKey).
 // If not defined or empty the default values are used.
-func Flashes(r *http.Request, vars ...string) ([]interface{}, os.Error) {
+func Flashes(r *http.Request, vars ...string) ([]interface{}, error) {
 	return DefaultSessionFactory.Flashes(r, vars...)
 }
 
@@ -102,24 +102,24 @@ func Flashes(r *http.Request, vars ...string) ([]interface{}, os.Error) {
 // The variadic arguments are optional: (flashKey, sessionKey, storeKey).
 // If not defined or empty the default values are used.
 func AddFlash(r *http.Request, value interface{},
-vars ...string) (bool, os.Error) {
+	vars ...string) (bool, error) {
 	return DefaultSessionFactory.AddFlash(r, value, vars...)
 }
 
 // Config returns the configuration for a given session.
 //
 // The key argument is optional; if not set it'll use the default session key.
-func Config(r *http.Request, key ...string) (*SessionConfig, os.Error) {
+func Config(r *http.Request, key ...string) (*SessionConfig, error) {
 	return DefaultSessionFactory.Config(r, key...)
 }
 
 // Save saves all sessions accessed during the request.
-func Save(r *http.Request, w http.ResponseWriter) []os.Error {
+func Save(r *http.Request, w http.ResponseWriter) []error {
 	return DefaultSessionFactory.Save(r, w)
 }
 
 // Store returns a session store for the given key.
-func Store(key string) (SessionStore, os.Error) {
+func Store(key string) (SessionStore, error) {
 	return DefaultSessionFactory.Store(key)
 }
 
@@ -131,7 +131,7 @@ func SetStore(key string, store SessionStore) {
 // SetStoreKeys defines authentication and encryption keys for the given store.
 //
 // See SessionFactory.SetStoreKeys.
-func SetStoreKeys(key string, pairs ...[]byte) (bool, os.Error) {
+func SetStoreKeys(key string, pairs ...[]byte) (bool, error) {
 	return DefaultSessionFactory.SetStoreKeys(key, pairs...)
 }
 
@@ -168,7 +168,7 @@ type SessionFactory struct {
 }
 
 // Store returns a session store for the given key.
-func (f *SessionFactory) Store(key string) (SessionStore, os.Error) {
+func (f *SessionFactory) Store(key string) (SessionStore, error) {
 	store, ok := f.stores[key]
 	if !ok {
 		return nil, ErrNoStore
@@ -203,7 +203,7 @@ func (f *SessionFactory) SetStore(key string, store SessionStore) {
 // The encryption key, if set, must be either 16, 24, or 32 bytes to select
 // AES-128, AES-192, or AES-256 modes.
 func (f *SessionFactory) SetStoreKeys(key string,
-pairs ...[]byte) (bool, os.Error) {
+	pairs ...[]byte) (bool, error) {
 	store, err := f.Store(key)
 	if err != nil {
 		return false, err
@@ -241,7 +241,7 @@ pairs ...[]byte) (bool, os.Error) {
 // to load a different session key or use a session store other than the
 // default one. If not defined or empty the defaults are used.
 func (f *SessionFactory) Session(r *http.Request,
-vars ...string) (SessionData, os.Error) {
+	vars ...string) (SessionData, error) {
 	return getRequestSessions(f, r).Session(vars...)
 }
 
@@ -250,7 +250,7 @@ vars ...string) (SessionData, os.Error) {
 // The variadic arguments are optional: (flashKey, sessionKey, storeKey).
 // If not defined or empty the default values are used.
 func (f *SessionFactory) Flashes(r *http.Request,
-vars ...string) ([]interface{}, os.Error) {
+	vars ...string) ([]interface{}, error) {
 	key, newvars := flashKey(vars...)
 	session, err := f.Session(r, newvars...)
 	if err != nil {
@@ -258,7 +258,7 @@ vars ...string) ([]interface{}, os.Error) {
 	}
 	if flashes, ok := session[key]; ok {
 		// Drop the flashes and return it.
-		session[key] = nil, false
+		delete(session, key)
 		return flashes.([]interface{}), nil
 	}
 	return nil, ErrNoFlashes
@@ -269,7 +269,7 @@ vars ...string) ([]interface{}, os.Error) {
 // The variadic arguments are optional: (flashKey, sessionKey, storeKey).
 // If not defined or empty the default values are used.
 func (f *SessionFactory) AddFlash(r *http.Request, value interface{},
-vars ...string) (bool, os.Error) {
+	vars ...string) (bool, error) {
 	key, newvars := flashKey(vars...)
 	session, err := f.Session(r, newvars...)
 	if err != nil {
@@ -289,13 +289,13 @@ vars ...string) (bool, os.Error) {
 //
 // The key argument is optional; if not set it'll use the default session key.
 func (f *SessionFactory) Config(r *http.Request,
-key ...string) (*SessionConfig, os.Error) {
+	key ...string) (*SessionConfig, error) {
 	return getRequestSessions(f, r).Config(key...)
 }
 
 // Save saves all sessions accessed during the request.
 func (f *SessionFactory) Save(r *http.Request,
-w http.ResponseWriter) []os.Error {
+	w http.ResponseWriter) []error {
 	return getRequestSessions(f, r).Save(w)
 }
 
@@ -345,7 +345,7 @@ var ns = new(context.Namespace)
 
 // getRequestSessions returns a sessions container for a single request.
 func getRequestSessions(f *SessionFactory,
-r *http.Request) *requestSessions {
+	r *http.Request) *requestSessions {
 	var s *requestSessions
 	rv := ns.Get(r)
 	if rv != nil {
@@ -373,7 +373,7 @@ type requestSessions struct {
 // The variadic arguments are optional: (sessionKey, storeKey). They are used
 // to load a different session key or use a session store other than the
 // default one. If not defined or empty the defaults are used.
-func (s *requestSessions) Session(vars ...string) (SessionData, os.Error) {
+func (s *requestSessions) Session(vars ...string) (SessionData, error) {
 	sessionKey, storeKey := sessionKeys(vars...)
 	// Get the requested store.
 	store, err := s.factory.Store(storeKey)
@@ -405,7 +405,7 @@ func (s *requestSessions) Session(vars ...string) (SessionData, os.Error) {
 // Config returns the configuration for a given session.
 //
 // The key argument is optional; if not set it'll use the default session key.
-func (s *requestSessions) Config(key ...string) (*SessionConfig, os.Error) {
+func (s *requestSessions) Config(key ...string) (*SessionConfig, error) {
 	sessionKey, _ := sessionKeys(key...)
 	if info, ok := s.sessions[sessionKey]; ok {
 		return &info.Config, nil
@@ -414,14 +414,14 @@ func (s *requestSessions) Config(key ...string) (*SessionConfig, os.Error) {
 }
 
 // Save saves all sessions accessed during the request.
-func (s *requestSessions) Save(w http.ResponseWriter) []os.Error {
-	var err os.Error
+func (s *requestSessions) Save(w http.ResponseWriter) []error {
+	var err error
 	var ok bool
-	var errors []os.Error
+	var errors []error
 	for key, info := range s.sessions {
 		if ok, err = info.Store.Save(s.request, w, key, &info); !ok {
 			if errors == nil {
-				errors = []os.Error{err}
+				errors = []error{err}
 			} else {
 				errors = append(errors, err)
 			}
@@ -450,7 +450,7 @@ func sessionKeys(vars ...string) (string, string) {
 // SessionStore defines an interface for session stores.
 type SessionStore interface {
 	Load(r *http.Request, key string, info *SessionInfo)
-	Save(r *http.Request, w http.ResponseWriter, key string, info *SessionInfo) (bool, os.Error)
+	Save(r *http.Request, w http.ResponseWriter, key string, info *SessionInfo) (bool, error)
 	Encoders() []SessionEncoder
 	SetEncoders(encoders ...SessionEncoder)
 }
@@ -470,13 +470,13 @@ type CookieSessionStore struct {
 
 // Load loads a session for the given key.
 func (s *CookieSessionStore) Load(r *http.Request, key string,
-info *SessionInfo) {
+	info *SessionInfo) {
 	info.Data = GetCookie(s, r, key)
 }
 
 // Save saves the session in the response.
 func (s *CookieSessionStore) Save(r *http.Request, w http.ResponseWriter,
-key string, info *SessionInfo) (bool, os.Error) {
+	key string, info *SessionInfo) (bool, error) {
 	return SetCookie(s, w, key, info)
 }
 
@@ -495,7 +495,7 @@ func (s *CookieSessionStore) SetEncoders(encoders ...SessionEncoder) {
 // ----------------------------------------------------------------------------
 
 // GenerateSessionId generates a random session id with the given length.
-func GenerateSessionId(length int) (string, os.Error) {
+func GenerateSessionId(length int) (string, error) {
 	if length <= 0 {
 		return "", ErrBadIdLength
 	}
@@ -522,7 +522,7 @@ func GetCookie(s SessionStore, r *http.Request, key string) SessionData {
 //
 // Custom backends will only store a session id in the cookie.
 func SetCookie(s SessionStore, w http.ResponseWriter, key string,
-info *SessionInfo) (bool, os.Error) {
+	info *SessionInfo) (bool, error) {
 	encoded, err := Encode(s, key, info.Data)
 	if err != nil {
 		return false, err
@@ -541,11 +541,11 @@ info *SessionInfo) (bool, os.Error) {
 }
 
 // Encode encodes a session value for a session store.
-func Encode(s SessionStore, key string, value SessionData) (string, os.Error) {
+func Encode(s SessionStore, key string, value SessionData) (string, error) {
 	encoders := s.Encoders()
 	if encoders != nil {
 		var encoded string
-		var err os.Error
+		var err error
 		for _, encoder := range encoders {
 			encoded, err = encoder.Encode(key, value)
 			if err == nil {
@@ -557,11 +557,11 @@ func Encode(s SessionStore, key string, value SessionData) (string, os.Error) {
 }
 
 // Decode decodes a session value for a session store.
-func Decode(s SessionStore, key, value string) (SessionData, os.Error) {
+func Decode(s SessionStore, key, value string) (SessionData, error) {
 	encoders := s.Encoders()
 	if encoders != nil {
 		var decoded SessionData
-		var err os.Error
+		var err error
 		for _, encoder := range encoders {
 			decoded, err = encoder.Decode(key, value)
 			if err == nil {
@@ -573,12 +573,12 @@ func Decode(s SessionStore, key, value string) (SessionData, os.Error) {
 }
 
 // SerializeSessionData serializes a session value using gob.
-func SerializeSessionData(session SessionData) ([]byte, os.Error) {
+func SerializeSessionData(session SessionData) ([]byte, error) {
 	return serialize(session)
 }
 
 // DeserializeSessionData deserializes a session value using gob.
-func DeserializeSessionData(value []byte) (data SessionData, err os.Error) {
+func DeserializeSessionData(value []byte) (data SessionData, err error) {
 	return deserialize(value)
 }
 
@@ -588,8 +588,8 @@ func DeserializeSessionData(value []byte) (data SessionData, err os.Error) {
 
 // SessionEncoder defines an interface to encode and decode session values.
 type SessionEncoder interface {
-	Encode(key string, value SessionData) (string, os.Error)
-	Decode(key, value string) (SessionData, os.Error)
+	Encode(key string, value SessionData) (string, error)
+	Decode(key, value string) (SessionData, error)
 }
 
 // ----------------------------------------------------------------------------
@@ -638,7 +638,7 @@ type Encoder struct {
 //
 // It serializes, optionally encrypts, creates a message authentication code
 // and finally encodes the value in a format suitable for cookie transmition.
-func (s *Encoder) Encode(key string, value SessionData) (rv string, err os.Error) {
+func (s *Encoder) Encode(key string, value SessionData) (rv string, err error) {
 	// Hash is required.
 	if s.Hash == nil {
 		err = ErrMissingHash
@@ -675,7 +675,7 @@ func (s *Encoder) Encode(key string, value SessionData) (rv string, err os.Error
 //
 // It decodes, verifies a message authentication code, optionally decrypts and
 // finally deserializes the value.
-func (s *Encoder) Decode(key, value string) (SessionData, os.Error) {
+func (s *Encoder) Decode(key, value string) (SessionData, error) {
 	// Hash is required.
 	if s.Hash == nil {
 		return nil, ErrMissingHash
@@ -733,7 +733,7 @@ func (s *Encoder) timestamp() int64 {
 // Serialization --------------------------------------------------------------
 
 // serialize encodes a session value using gob.
-func serialize(session SessionData) ([]byte, os.Error) {
+func serialize(session SessionData) ([]byte, error) {
 	b := bytes.NewBuffer(nil)
 	e := gob.NewEncoder(b)
 	if err := e.Encode(session); err != nil {
@@ -743,7 +743,7 @@ func serialize(session SessionData) ([]byte, os.Error) {
 }
 
 // deserialize decodes a session value using gob.
-func deserialize(value []byte) (SessionData, os.Error) {
+func deserialize(value []byte) (SessionData, error) {
 	var session SessionData
 	b := bytes.NewBuffer(value)
 	d := gob.NewDecoder(b)
@@ -760,11 +760,11 @@ func deserialize(value []byte) (SessionData, os.Error) {
 // A random initialization vector is generated and prepended to the resulting
 // ciphertext to be available for decryption. Also, a random salt with the
 // length of the block size is prepended to the value before encryption.
-func encrypt(block cipher.Block, value []byte) (rv []byte, err os.Error) {
+func encrypt(block cipher.Block, value []byte) (rv []byte, err error) {
 	// Recover in case block has an invalid key.
 	defer func() {
 		if r := recover(); r != nil {
-			err = r.(os.Error)
+			err = r.(error)
 		}
 	}()
 	size := block.BlockSize()
@@ -793,11 +793,11 @@ func encrypt(block cipher.Block, value []byte) (rv []byte, err os.Error) {
 // The value to be decrypted must have a length greater than the block size,
 // because the initialization vector is expected to prepend it. Also, a salt
 // with the length of the block size is expected to prepend the plain value.
-func decrypt(block cipher.Block, value []byte) (b []byte, err os.Error) {
+func decrypt(block cipher.Block, value []byte) (b []byte, err error) {
 	// Recover in case block has an invalid key.
 	defer func() {
 		if r := recover(); r != nil {
-			err = r.(os.Error)
+			err = r.(error)
 		}
 	}()
 	size := block.BlockSize()
@@ -825,7 +825,7 @@ func decrypt(block cipher.Block, value []byte) (b []byte, err os.Error) {
 //
 // It returns the concatenation of "value|timestamp|message".
 func createHmac(h hash.Hash, key string, value []byte,
-timestamp int64) []byte {
+	timestamp int64) []byte {
 	msg := mac(h, key, value, timestamp)
 	return []byte(fmt.Sprintf("%s|%d|%s", value, timestamp, msg))
 }
@@ -834,7 +834,7 @@ timestamp int64) []byte {
 //
 // The provided source bytes must be in the form "value|timestamp|message".
 func verifyHmac(h hash.Hash, key string, value []byte, timestamp, minAge,
-maxAge int64) ([]byte, os.Error) {
+	maxAge int64) ([]byte, error) {
 	parts := bytes.SplitN(value, []byte("|"), 3)
 	if len(parts) != 3 {
 		return nil, ErrAuthentication
@@ -879,7 +879,7 @@ func encode(value []byte) []byte {
 }
 
 // decode decodes a value received as a session cookie.
-func decode(value []byte) ([]byte, os.Error) {
+func decode(value []byte) ([]byte, error) {
 	decoded := make([]byte, base64.URLEncoding.DecodedLen(len(value)))
 	b, err := base64.URLEncoding.Decode(decoded, value)
 	if err != nil {

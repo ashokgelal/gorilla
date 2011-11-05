@@ -7,6 +7,7 @@ package moustachio
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"http"
 	"image"
@@ -14,7 +15,6 @@ import (
 	_ "image/png" // import so we can read PNG files.
 	"io"
 	"json"
-	"os"
 	"strconv"
 	"template"
 
@@ -67,7 +67,7 @@ func init() {
 	editTemplate = template.New(nil)
 	editTemplate.SetDelims("{{{", "}}}")
 	if err := editTemplate.ParseFile("edit.html"); err != nil {
-		panic("can't parse edit.html: " + err.String())
+		panic("can't parse edit.html: " + err.Error())
 	}
 }
 
@@ -206,7 +206,7 @@ func post(w http.ResponseWriter, r *http.Request) {
 }
 
 // postPhoto uses the Buzz API to post the image to the user's Buzz stream.
-func postPhoto(client *http.Client, photoURL string) os.Error {
+func postPhoto(client *http.Client, photoURL string) error {
 	const url = "https://www.googleapis.com/buzz/v1/activities/@me/@self"
 	const text = "Moustachio"
 
@@ -235,7 +235,7 @@ func postPhoto(client *http.Client, photoURL string) os.Error {
 		return err
 	}
 	if resp.StatusCode != 200 {
-		return os.NewError("invalid post " + resp.Status)
+		return errors.New("invalid post " + resp.Status)
 	}
 	return nil
 }
@@ -245,7 +245,7 @@ func postPhoto(client *http.Client, photoURL string) os.Error {
 func errorHandler(fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
-			if err, ok := recover().(os.Error); ok {
+			if err, ok := recover().(error); ok {
 				w.WriteHeader(http.StatusInternalServerError)
 				errorTemplate.Execute(w, err)
 			}
@@ -255,7 +255,7 @@ func errorHandler(fn http.HandlerFunc) http.HandlerFunc {
 }
 
 // check aborts the current execution if err is non-nil.
-func check(err os.Error) {
+func check(err error) {
 	if err != nil {
 		panic(err)
 	}

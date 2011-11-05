@@ -5,12 +5,11 @@ package appengine
 
 import proto "goprotobuf.googlecode.com/hg/proto"
 import "math"
-import "os"
 
 // Reference proto, math & os imports to suppress error if they are not otherwise used.
 var _ = proto.GetString
 var _ = math.Inf
-var _ os.Error
+var _ error
 
 type URLFetchServiceError_ErrorCode int32
 
@@ -88,8 +87,8 @@ type URLFetchServiceError struct {
 	XXX_unrecognized []byte `json:",omitempty"`
 }
 
-func (this *URLFetchServiceError) Reset()         { *this = URLFetchServiceError{} }
-func (this *URLFetchServiceError) String() string { return proto.CompactTextString(this) }
+func (this *URLFetchServiceError) Reset()        { *this = URLFetchServiceError{} }
+func (this *URLFetchServiceError) Error() string { return proto.CompactTextString(this) }
 
 type URLFetchRequest struct {
 	Method                        *URLFetchRequest_RequestMethod `protobuf:"varint,1,req,enum=appengine.URLFetchRequest_RequestMethod" json:"Method,omitempty"`

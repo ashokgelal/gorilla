@@ -352,11 +352,11 @@ func TestErrors(t *testing.T) {
 	if len(schemaErr.Errors()) != 2 {
 		t.Fatalf("Expected 2 entries in SchemaError, got %d", len(schemaErr.Errors()))
 	}
-	f01Error := schemaErr.Error("F01")
+	f01Error := schemaErr.Err("F01")
 	if f01Error == nil {
 		t.Errorf("Expected error for 'F01'")
 	}
-	f02Error := schemaErr.Error("F02")
+	f02Error := schemaErr.Err("F02")
 	if f02Error == nil {
 		t.Errorf("Expected error for 'F02'")
 	}

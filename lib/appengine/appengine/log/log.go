@@ -29,7 +29,7 @@ Example:
 package log
 
 import (
-	"os"
+	"errors"
 	"strings"
 
 	"appengine"
@@ -123,7 +123,7 @@ type Result struct {
 }
 
 // Next returns the next log record,
-func (qr *Result) Next() (*Record, os.Error) {
+func (qr *Result) Next() (*Record, error) {
 	if len(qr.logs) > 0 {
 		lr := qr.logs[0]
 		qr.logs = qr.logs[1:]
@@ -142,7 +142,7 @@ func (qr *Result) Next() (*Record, os.Error) {
 }
 
 // Done is returned when a query iteration has completed.
-var Done = os.NewError("log: query has no more results")
+var Done = errors.New("log: query has no more results")
 
 // protoToAppLogs takes as input an array of pointers to LogLines, the internal
 // Protocol Buffer representation of a single application-level log,
@@ -238,7 +238,7 @@ func (params *Query) Run(c appengine.Context) *Result {
 // offset to where more logs can be found. We also convert the items in the
 // response from their internal representations to external versions of the
 // same structs.
-func (qr *Result) run() os.Error {
+func (qr *Result) run() error {
 	res := &log_proto.LogReadResponse{}
 	if err := qr.context.Call("logservice", "Read", qr.request, res, nil); err != nil {
 		return err

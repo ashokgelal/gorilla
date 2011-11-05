@@ -5,12 +5,11 @@ package appengine
 
 import proto "goprotobuf.googlecode.com/hg/proto"
 import "math"
-import "os"
 
 // Reference proto, math & os imports to suppress error if they are not otherwise used.
 var _ = proto.GetString
 var _ = math.Inf
-var _ os.Error
+var _ error
 
 type CapabilityConfig_Status int32
 

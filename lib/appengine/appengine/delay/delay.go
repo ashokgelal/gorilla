@@ -43,9 +43,9 @@ package delay
 
 import (
 	"bytes"
+	"errors"
 	"gob"
 	"http"
-	"os"
 	"reflect"
 	"runtime"
 
@@ -57,7 +57,7 @@ import (
 type Function struct {
 	fv  reflect.Value // Kind() == reflect.Func
 	key string
-	err os.Error // any error during initialization
+	err error // any error during initialization
 }
 
 const (
@@ -73,10 +73,10 @@ var (
 
 	// precomputed types
 	contextType = reflect.TypeOf((*appengine.Context)(nil)).Elem()
-	osErrorType = reflect.TypeOf((*os.Error)(nil)).Elem()
+	osErrorType = reflect.TypeOf((*error)(nil)).Elem()
 
 	// errors
-	errFirstArg = os.NewError("first argument must be appengine.Context")
+	errFirstArg = errors.New("first argument must be appengine.Context")
 )
 
 // Func declares a new Function. The second argument must be a function with a
@@ -96,7 +96,7 @@ func Func(key string, i interface{}) *Function {
 
 	t := f.fv.Type()
 	if t.Kind() != reflect.Func {
-		f.err = os.NewError("not a function")
+		f.err = errors.New("not a function")
 		return f
 	}
 	if t.NumIn() == 0 || t.In(0) != contextType {

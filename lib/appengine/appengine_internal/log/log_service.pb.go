@@ -5,12 +5,11 @@ package appengine
 
 import proto "goprotobuf.googlecode.com/hg/proto"
 import "math"
-import "os"
 
 // Reference proto, math & os imports to suppress error if they are not otherwise used.
 var _ = proto.GetString
 var _ = math.Inf
-var _ os.Error
+var _ error
 
 type LogServiceError_ErrorCode int32
 
@@ -43,8 +42,8 @@ type LogServiceError struct {
 	XXX_unrecognized []byte `json:",omitempty"`
 }
 
-func (this *LogServiceError) Reset()         { *this = LogServiceError{} }
-func (this *LogServiceError) String() string { return proto.CompactTextString(this) }
+func (this *LogServiceError) Reset()        { *this = LogServiceError{} }
+func (this *LogServiceError) Error() string { return proto.CompactTextString(this) }
 
 type UserAppLogLine struct {
 	TimestampUsec    *int64  `protobuf:"varint,1,req,name=timestamp_usec" json:"timestamp_usec,omitempty"`

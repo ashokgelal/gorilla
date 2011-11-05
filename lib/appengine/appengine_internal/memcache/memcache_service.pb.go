@@ -5,12 +5,11 @@ package appengine
 
 import proto "goprotobuf.googlecode.com/hg/proto"
 import "math"
-import "os"
 
 // Reference proto, math & os imports to suppress error if they are not otherwise used.
 var _ = proto.GetString
 var _ = math.Inf
-var _ os.Error
+var _ error
 
 type MemcacheServiceError_ErrorCode int32
 
@@ -184,8 +183,8 @@ type MemcacheServiceError struct {
 	XXX_unrecognized []byte `json:",omitempty"`
 }
 
-func (this *MemcacheServiceError) Reset()         { *this = MemcacheServiceError{} }
-func (this *MemcacheServiceError) String() string { return proto.CompactTextString(this) }
+func (this *MemcacheServiceError) Reset()        { *this = MemcacheServiceError{} }
+func (this *MemcacheServiceError) Error() string { return proto.CompactTextString(this) }
 
 type AppOverride struct {
 	AppId                *string `protobuf:"bytes,1,req,name=app_id" json:"app_id,omitempty"`

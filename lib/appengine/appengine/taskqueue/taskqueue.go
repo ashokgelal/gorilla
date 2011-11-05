@@ -21,7 +21,6 @@ package taskqueue
 import (
 	"fmt"
 	"http"
-	"os"
 	"time"
 	"url"
 
@@ -78,7 +77,7 @@ func NewPOSTTask(path string, params url.Values) *Task {
 // An empty queue name means that the default queue will be used.
 // Add returns an equivalent Task with defaults filled in, including setting
 // the task's Name field to the chosen name if the original was empty.
-func Add(c appengine.Context, task *Task, queueName string) (*Task, os.Error) {
+func Add(c appengine.Context, task *Task, queueName string) (*Task, error) {
 	if queueName == "" {
 		queueName = "default"
 	}
@@ -130,7 +129,7 @@ func Add(c appengine.Context, task *Task, queueName string) (*Task, os.Error) {
 }
 
 // Delete deletes a task from a named queue.
-func Delete(c appengine.Context, task *Task, queueName string) os.Error {
+func Delete(c appengine.Context, task *Task, queueName string) error {
 	req := &taskqueue_proto.TaskQueueDeleteRequest{
 		QueueName: []byte(queueName),
 		TaskName:  [][]byte{[]byte(task.Name)},
@@ -153,7 +152,7 @@ func Delete(c appengine.Context, task *Task, queueName string) os.Error {
 // LeaseTasks leases tasks from a queue.
 // leaseTime is in seconds.
 // The number of tasks fetched will be at most maxTasks.
-func LeaseTasks(c appengine.Context, maxTasks int, queueName string, leaseTime int) ([]*Task, os.Error) {
+func LeaseTasks(c appengine.Context, maxTasks int, queueName string, leaseTime int) ([]*Task, error) {
 	req := &taskqueue_proto.TaskQueueQueryAndOwnTasksRequest{
 		QueueName:    []byte(queueName),
 		LeaseSeconds: proto.Float64(float64(leaseTime)),
@@ -176,7 +175,7 @@ func LeaseTasks(c appengine.Context, maxTasks int, queueName string, leaseTime i
 }
 
 // Purge removes all tasks from a queue.
-func Purge(c appengine.Context, queueName string) os.Error {
+func Purge(c appengine.Context, queueName string) error {
 	req := &taskqueue_proto.TaskQueuePurgeQueueRequest{
 		QueueName: []byte(queueName),
 	}

@@ -6,7 +6,6 @@ package datastore
 
 import (
 	"fmt"
-	"os"
 	"reflect"
 	"unicode"
 	"utf8"
@@ -128,7 +127,7 @@ func loadStructField(sv reflect.Value, p *pb.Property) string {
 
 // loadStruct converts an EntityProto into an existing struct.
 // It returns an error if the destination struct is unable to hold the entity.
-func loadStruct(sv reflect.Value, k *Key, e *pb.EntityProto) os.Error {
+func loadStruct(sv reflect.Value, k *Key, e *pb.EntityProto) error {
 	var fieldName, reason string
 	for _, p := range e.Property {
 		if errStr := loadStructField(sv, p); errStr != "" {
@@ -153,7 +152,7 @@ func loadStruct(sv reflect.Value, k *Key, e *pb.EntityProto) os.Error {
 
 // loadMapEntry converts a Property into an entry of an existing Map,
 // or into an element of a slice-valued Map entry.
-func loadMapEntry(m Map, k *Key, p *pb.Property) os.Error {
+func loadMapEntry(m Map, k *Key, p *pb.Property) error {
 	var (
 		result    interface{}
 		sliceType reflect.Type
@@ -211,7 +210,7 @@ func loadMapEntry(m Map, k *Key, p *pb.Property) os.Error {
 }
 
 // loadMap converts an EntityProto into an existing Map.
-func loadMap(m Map, k *Key, e *pb.EntityProto) (err os.Error) {
+func loadMap(m Map, k *Key, e *pb.EntityProto) (err error) {
 	for _, p := range e.Property {
 		if err1 := loadMapEntry(m, k, p); err1 != nil {
 			err = err1

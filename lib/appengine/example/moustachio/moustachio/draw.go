@@ -6,6 +6,7 @@ package moustachio
 
 import (
 	"image"
+	"image/color"
 	"image/draw"
 
 	"freetype-go.googlecode.com/hg/freetype/raster"
@@ -18,7 +19,7 @@ func moustache(m image.Image, x, y, size, droopFactor int) image.Image {
 	mrgba := rgba(m)
 
 	p := raster.NewRGBAPainter(mrgba)
-	p.SetColor(image.RGBAColor{0, 0, 0, 255})
+	p.SetColor(color.RGBA{0, 0, 0, 255})
 
 	w, h := m.Bounds().Dx(), m.Bounds().Dy()
 	r := raster.NewRasterizer(w, h)
@@ -67,7 +68,7 @@ func rgba(m image.Image) *image.RGBA {
 		return r
 	}
 	b := m.Bounds()
-	r := image.NewRGBA(b.Dx(), b.Dy())
+	r := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
 	draw.Draw(r, b, m, image.ZP)
 	return r
 }

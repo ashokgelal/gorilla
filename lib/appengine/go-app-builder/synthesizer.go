@@ -6,12 +6,11 @@ package main
 
 import (
 	"bytes"
-	"os"
 	"template"
 )
 
 // MakeMain creates the synthetic main package for a Go App Engine app.
-func MakeMain(app *App, extraImports []string) (string, os.Error) {
+func MakeMain(app *App, extraImports []string) (string, error) {
 	buf := new(bytes.Buffer)
 	data := &templateData{
 		App:          app,
