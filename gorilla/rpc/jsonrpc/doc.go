@@ -42,19 +42,13 @@ In this example, one method will be registered and can be accessed as
 Only methods that satisfy these criteria will be made available for remote
 access:
 
-- The method name is exported, that is, begins with an upper case letter.
-
-- The method receiver is exported or local (defined in the package
-  registering the service).
-
-- The method has three arguments.
-
-- The first argument is *http.Request.
-
-- The second and third arguments are exported or local types.
-
-- The third argument is a pointer.
-
-- The method has return type os.Error.
+	- The method name is exported, that is, begins with an upper case letter.
+	- The method receiver is exported or local (defined in the package
+	  registering the service).
+	- The method has three arguments.
+	- The first argument is *http.Request.
+	- The second and third arguments are exported or local types.
+	- The third argument is a pointer.
+	- The method has return type os.Error.
 */
 package jsonrpc
